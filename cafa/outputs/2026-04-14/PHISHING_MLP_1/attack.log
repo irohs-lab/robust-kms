@@ -1,0 +1,75 @@
+[2026-04-14 10:16:31,524][__main__][INFO] - Used config: n_samples_to_attack: 1500
+data_split_to_attack: test
+save_attack_artifacts: true
+perform_training: false
+perform_training_grid_search_hparams: false
+perform_constraints_mining: false
+perform_constraints_ranking: false
+perform_constraints_soundness_evaluation: false
+perform_attack: true
+perform_projection: true
+data:
+  name: phishing
+  params:
+    dataset_name: ${data.name}
+    data_file_path: ${data.paths.data_file_path}
+    metadata_file_path: ${data.paths.metadata_file_path}
+    encoding_method: one_hot_encoding
+    random_seed: 42
+    train_proportion: 0.87
+  paths:
+    data_dir_path: data/${data.name}/raw-data
+    data_file_path: ${data.paths.data_dir_path}/Phishing_Legitimate_full.arff
+    metadata_file_path: ${data.paths.data_dir_path}/phishing.metadata.csv
+    constraints_dir_path: data/${data.name}/mined-constraints
+    raw_dcs_out_path: ${data.paths.constraints_dir_path}/phishing-10cols__DC_threshold=0.01__fastadc_dcs.txt
+    evaluated_dcs_out_path: ${data.paths.constraints_dir_path}/phishing-10cols__DC_threshold=0.01__fastadc_dcs__eval.csv
+ml_model:
+  model_type: mlp
+  model_artifact_path: trained-models/${data.name}-${ml_model.model_type}.ckpt
+  perform_training: ${perform_training}
+  perform_grid_search_hparams: ${perform_training_grid_search_hparams}
+  default_hparams:
+    n_layers: 3
+    hidden_dim: 128
+    lr: 0.001
+    weight_decay: 1.0e-05
+attack:
+  attack_name: cafa
+  random_init: true
+  random_seed: null
+  max_iter: 250
+  max_iter_tabpgd: 100
+  eps: 0.5
+  step_size: 0.005
+  perturb_categorical_each_steps: 10
+constraints:
+  constrainer_params:
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    n_dcs: 5000
+    n_tuples: 1
+    limit_cost_ball: true
+    cost_ball_eps: 1.0
+  projector_params:
+    upper_projection_budget_bound: 1.0
+  mining_params:
+    perform_constraints_mining: ${perform_constraints_mining}
+    perform_constraints_ranking: ${perform_constraints_ranking}
+    raw_dcs_out_path: ${data.paths.raw_dcs_out_path}
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    approx_violation_threshold: 0.01
+    path_to_fastadc_miner_jar: src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar
+    n_dcs_to_eval: 10000
+    n_tuples_to_eval: 1000
+    n_other_tuples_to_eval: 8000
+
+[2026-04-14 10:16:31,725][src.models.utils][INFO] - Loading model from trained-models/phishing-mlp.ckpt
+[2026-04-14 10:16:32,380][art.estimators.classification.pytorch][INFO] - Inferred 2 hidden layers on PyTorch classifier.
+[2026-04-14 10:16:32,521][__main__][INFO] - Initializing constraint set and projector for the attack.
+[2026-04-14 10:17:03,169][__main__][INFO] - before-attack: {'is_misclassified_rate': 0.052307692307692305, 'is_comp_rate': 0.8530769230769231, 'is_mis_and_comp_rate': 0.04461538461538461, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}
+[2026-04-14 10:17:03,169][__main__][INFO] - Executing CaFA attack.
+[2026-04-14 10:35:59,378][__main__][INFO] - after-cafa: {'is_misclassified_rate': 1.0, 'is_comp_rate': 0.5376923076923077, 'is_mis_and_comp_rate': 0.5376923076923077, 'l0_costs_mean': 2.3923076923076922, 'l0_costs_on_mis_mean': 2.3923076923076922, 'l0_costs_on_mis_and_comp_mean': 1.9356223175965666, 'stand_linf_costs_mean': 0.29708063360512105, 'stand_linf_costs_on_mis_mean': 0.29708063360512105, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.24276887757395596}
+[2026-04-14 10:35:59,378][__main__][INFO] - Executing projection of the crafted samples onto the constrained space.
+[2026-04-14 10:44:01,455][__main__][INFO] - after-projection: {'is_misclassified_rate': 0.7953846153846154, 'is_comp_rate': 0.9876923076923076, 'is_mis_and_comp_rate': 0.7892307692307692, 'l0_costs_mean': 5.9107692307692306, 'l0_costs_on_mis_mean': 5.000967117988394, 'l0_costs_on_mis_and_comp_mean': 4.9522417153996106, 'stand_linf_costs_mean': 0.38493529900900886, 'stand_linf_costs_on_mis_mean': 0.3341864947011765, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.333612864487307}
+[2026-04-14 10:44:01,456][__main__][INFO] - Evaluations: {'before-attack': {'is_misclassified_rate': 0.052307692307692305, 'is_comp_rate': 0.8530769230769231, 'is_mis_and_comp_rate': 0.04461538461538461, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}, 'after-cafa': {'is_misclassified_rate': 1.0, 'is_comp_rate': 0.5376923076923077, 'is_mis_and_comp_rate': 0.5376923076923077, 'l0_costs_mean': 2.3923076923076922, 'l0_costs_on_mis_mean': 2.3923076923076922, 'l0_costs_on_mis_and_comp_mean': 1.9356223175965666, 'stand_linf_costs_mean': 0.29708063360512105, 'stand_linf_costs_on_mis_mean': 0.29708063360512105, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.24276887757395596}, 'after-cafa-projection': {'is_misclassified_rate': 0.7953846153846154, 'is_comp_rate': 0.9876923076923076, 'is_mis_and_comp_rate': 0.7892307692307692, 'l0_costs_mean': 5.9107692307692306, 'l0_costs_on_mis_mean': 5.000967117988394, 'l0_costs_on_mis_and_comp_mean': 4.9522417153996106, 'stand_linf_costs_mean': 0.38493529900900886, 'stand_linf_costs_on_mis_mean': 0.3341864947011765, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.333612864487307}}
+[2026-04-14 10:44:01,456][__main__][INFO] - Finished run. results saved in /users/student/rs/rahulky/robust-rfms/attack_tab/outputs/2026-04-14/10-16-31

@@ -1,0 +1,3 @@
+- ml_model=kernel
+- ml_model.perform_training=False
+- perform_attack=True
