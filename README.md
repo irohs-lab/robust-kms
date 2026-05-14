@@ -503,7 +503,12 @@ Supports:
 ```bash
 python attack_nn.py
 ```
+Change:
 
+```python
+model_type="fcnn"
+rff_kernel = None
+```
 ---
 
 ## LeNet
@@ -512,6 +517,7 @@ Change:
 
 ```python
 model_type="lenet"
+rff_kernel = None
 ```
 
 ---
@@ -522,6 +528,7 @@ Change:
 
 ```python
 model_type="rff"
+rff_kernel = "gaussian" or "laplace"
 ```
 
 inside the code.
