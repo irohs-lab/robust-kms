@@ -531,7 +531,19 @@ model_type="rff"
 rff_kernel = "gaussian" or "laplace"
 ```
 
-inside the code.
+inside the code. For multiclass keep *mc=True* else, switch it to *False*.
+For multiclass provide CKPT_PATH as the <path_to_the_model_stored>(in .pt format)) that needs to be changed inside the code. For binary we can either provide CKPT_PATH as <path_to_the_model_stored>(in .pt format), or to attack over all the binary problems at once, we can provide a json file having path for each binary classifier as a value for *JSON_PATH*.
+For e.g.:-
+```
+{
+  "root_dir": "./rff_gaussian_fmnist_pairwise",
+  "num_experiments": 45,
+  "results": [
+    {
+      "experiment": "rff_gaussian_fmnist_pairwise",
+      "path": "./rff_gaussian_fmnist_pairwise/fmnist_(0, 1)_rff_best.pt"
+    },
+```
 
 ---
 
