@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from numpy.linalg import solve
-import kernels
 from tqdm import tqdm
 import hickle
 import torch.nn.functional as F
@@ -9,9 +8,16 @@ import torch.nn.functional as F
 from torchkernels.kernels.radial import laplacian, gaussian
 # from radial import laplacian
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device="cpu"
 
+# import argparse
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--kernel', type=str, default='laplacian', help='Kernel to use: laplacian or gaussian')
+# args = parser.parse_args()
 
+# def laplace_kernel_M(pair1, pair2, bandwidth, M):
+#     return kernels.laplacian_M(pair1, pair2, bandwidth, M)
 
 from torch.func import vmap, jacrev
 from functools import partial
@@ -25,7 +31,12 @@ def get_data(loader):
         y.append(labels)
     return torch.cat(X, dim=0), torch.cat(y, dim=0)
 
-def normalize(x): return x/x.norm(p=2,dim=-1,keepdim=True)
+def normalize(x): return x/x.norm(p=2,dim=-1,keepdim=True).clamp_min(1e-12)
+
+def get_fixed_indices(n, num_samples, seed=42, device="cpu"):
+    g = torch.Generator(device=device)
+    g.manual_seed(seed)
+    return torch.randint(0, n, (num_samples,), generator=g, device=device)
 
 # def compute_EGOP_with_jacrev_laplacian(X, idx, sol, L, M, num_samples=20000, batch_size=5000):
 def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_size=5000):
@@ -35,7 +46,8 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
     
     Returns: (d, d) - EGOP matrix
     """
-    X = X.to("cpu")
+    # batch_size = 5000
+    X = X.to(dev)
     device, dtype = X.device, X.dtype
     n, d = X.shape
     C = sol.shape[0]
@@ -46,7 +58,7 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
     if (num_samples is None) or (num_samples >= n):
         x_eval = X
     else:
-        idx = torch.randint(0, n, (num_samples,), device=device)
+        idx = get_fixed_indices(n, num_samples, seed=42, device=device)
         x_eval = X[idx]
     m = x_eval.shape[0]
     
@@ -61,7 +73,9 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
     batched_grad_fn = vmap(grad_fn)
     
     # Compute EGOP in batches
-    EGOP = torch.zeros(d, d, device='cuda', dtype=torch.float32)
+    # EGOP = torch.zeros(d, d, device='cuda', dtype=torch.float32)
+    EGOP = torch.zeros(d, d, device=dev, dtype=torch.float32)
+
     
     for i in range(0, m, batch_size):
         batch = x_eval[i:i+batch_size]  # (bs, d)
@@ -73,13 +87,16 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
         
         # Compute outer products: Σ_c ∇f_c(x) ∇f_c(x)^T for each x
         # G_batch: (bs, C, d) -> (bs, d, C)
-        G_T = G_batch.transpose(1, 2)
+        # G_T = G_batch.transpose(1, 2)
         
-        # (bs, d, C) @ (bs, C, d) -> (bs, d, d)
-        outer_products = G_T @ G_batch
+        # # (bs, d, C) @ (bs, C, d) -> (bs, d, d)
+        # outer_products = G_T @ G_batch
         
-        # Sum over batch
-        EGOP += outer_products.sum(dim=0)
+        # # Sum over batch
+        # EGOP += outer_products.sum(dim=0)
+
+        EGOP += torch.einsum('bcd,bce->de', G_batch, G_batch)
+
         print(f"Processed batch {i//batch_size + 1}/{(m + batch_size - 1)//batch_size}")
     
     EGOP /= m
@@ -93,7 +110,8 @@ def compute_EGOP_with_jacrev_gaussian(X, sol, L, M, num_samples=20000, batch_siz
     
     Returns: (d, d) - EGOP matrix
     """
-    X = X.to("cpu")
+    # batch_size = 5000
+    X = X.to(dev)
     device, dtype = X.device, X.dtype
     n, d = X.shape
     C = sol.shape[0]
@@ -104,7 +122,7 @@ def compute_EGOP_with_jacrev_gaussian(X, sol, L, M, num_samples=20000, batch_siz
     if (num_samples is None) or (num_samples >= n):
         x_eval = X
     else:
-        idx = torch.randint(0, n, (num_samples,), device=device)
+        idx = get_fixed_indices(n, num_samples, seed=42, device=device)
         x_eval = X[idx]
     m = x_eval.shape[0]
     
@@ -119,7 +137,8 @@ def compute_EGOP_with_jacrev_gaussian(X, sol, L, M, num_samples=20000, batch_siz
     batched_grad_fn = vmap(grad_fn)
     
     # Compute EGOP in batches
-    EGOP = torch.zeros(d, d, device='cuda', dtype=torch.float32)
+    # EGOP = torch.zeros(d, d, device='cuda', dtype=torch.float32)
+    EGOP = torch.zeros(d, d, device=dev, dtype=torch.float32)
     
     for i in range(0, m, batch_size):
         batch = x_eval[i:i+batch_size]  # (bs, d)
@@ -127,15 +146,8 @@ def compute_EGOP_with_jacrev_gaussian(X, sol, L, M, num_samples=20000, batch_siz
         # Compute gradients: (bs, C, d)
         G_batch = torch.nan_to_num(batched_grad_fn(batch), nan = 0.0, posinf = 0.0, neginf = 0.0)
         
-        # Compute outer products: Σ_c ∇f_c(x) ∇f_c(x)^T for each x
-        # G_batch: (bs, C, d) -> (bs, d, C)
-        G_T = G_batch.transpose(1, 2)
-        
-        # (bs, d, C) @ (bs, C, d) -> (bs, d, d)
-        outer_products = G_T @ G_batch
-        
-        # Sum over batch
-        EGOP += outer_products.sum(dim=0)
+        EGOP += torch.einsum('bcd,bce->de', G_batch, G_batch)
+
         print(f"Processed batch {i//batch_size + 1}/{(m + batch_size - 1)//batch_size}")
     
     EGOP /= m
@@ -150,6 +162,9 @@ def rfm_laplacian(train_loader, test_loader,
         print("Loaders provided")
         X_train, y_train = get_data(train_loader)
         X_test, y_test = get_data(test_loader)
+        # y_mean = y_train.mean(dim=0, keepdim=True)
+        # print("y_mean:", y_mean)
+        # y_train = y_train - y_mean
     else:
         X_train, y_train = train_loader
         X_test, y_test = test_loader
@@ -165,99 +180,103 @@ def rfm_laplacian(train_loader, test_loader,
     print("X_train[0]:", X_train[0].shape)
     print("y_train:", y_train.shape)
 
-    # breakpoint()
+    # Move once to GPU
+    X_train = X_train.to(dev)
+    X_test = X_test.to(dev)
+    y_train = y_train.to(dev)
+    y_test = y_test.to(dev)
 
-    M = np.eye(d, dtype='float32')
+    M = torch.eye(d, device=dev, dtype=torch.float32)
     mses = []
     Ms = []
     sols = []
-    Ms.append(M+0)
+    Ms.append(M.detach().cpu().numpy().copy())
 
-    best_acc = 0
-
+    best_acc = 0.0
     round_best_acc = -1
+    kernel_acc = 0.0
+
+    # Precompute normalized test once
+    Xh_test = normalize(X_test)
 
     for i in range(iters):
-        K_train = laplacian(normalize(X_train), normalize(X_train), L, torch.from_numpy(M)).numpy()
-        sol = solve(K_train + reg * np.eye(len(K_train)), y_train).T
+        # GPU kernel matrix + GPU solve
+        Xh_train = normalize(X_train)
+        K_train = laplacian(Xh_train, Xh_train, L, M)
+        I = torch.eye(K_train.shape[0], device=dev, dtype=K_train.dtype)
+        sol = torch.linalg.solve(K_train + reg * I, y_train).T
         print("Solved:", sol.shape)
 
-        # breakpoint()
+        sols.append(sol.detach().cpu().numpy())
 
-        sols.append(sol)
         if train_acc:
             preds = (sol @ K_train).T
-            y_pred = torch.from_numpy(preds)
-            preds = torch.argmax(y_pred, dim=-1)
-            labels = torch.argmax(y_train, dim=-1)
-            count = torch.sum(labels == preds).numpy()
-            print("Round " + str(i) + " Train Acc: ", (count / len(labels))*100)
+            preds_idx = torch.argmax(preds, dim=-1)
+            labels = y_train.argmax(dim=-1) if y_train.ndim > 1 else y_train.long()
+            count = torch.sum(labels == preds_idx).item()
+            print("Round " + str(i) + " Train Acc: ", (count / len(labels)) * 100)
 
-        K_test = laplacian(normalize(X_train), normalize(X_test), L, torch.from_numpy(M)).numpy()
+        # GPU test kernel + prediction
+        K_test = laplacian(Xh_train, Xh_test, L, M)
         preds = (sol @ K_test).T
-#         print("preds",preds)
-#         print("y_test",y_test)
-        mse_ = ((preds - y_test)**2).mean().item()
+
+        mse_ = ((preds - y_test) ** 2).mean().item()
         mses.append(mse_)
         print("Round " + str(i) + " MSE: ", mse_)
         
         if classif:
-            # y_pred = torch.from_numpy(preds)
             y_pred = preds
-            preds = torch.argmax(y_pred, dim=-1)
-            labels = torch.argmax(y_test, dim=-1)
-            count = torch.sum(labels == preds).numpy()
+            preds_idx = torch.argmax(y_pred, dim=-1)
+            labels = y_test.argmax(dim=-1) if y_test.ndim > 1 else y_test.long()
+            count = torch.sum(labels == preds_idx).item()
             print("Round " + str(i) + " Acc: ", count / len(labels))
 
-            if 100*(count/len(labels)) > best_acc:
-                best_acc = 100*(count/len(labels))
+            if 100 * (count / len(labels)) > best_acc:
+                best_acc = 100 * (count / len(labels))
                 round_best_acc = i
 
             if i == 0:
-                kernel_acc = (count / len(labels))*100
+                kernel_acc = (count / len(labels)) * 100
 
-        # M1  = get_grads_laplacian(X_train, sol, L, torch.from_numpy(M), batch_size=batch_size).astype('float32')
-        M2  = compute_EGOP_with_jacrev_laplacian(X_train, sol, L, torch.from_numpy(M), num_samples=20000).astype('float32')
-        # M2 = laplacian_grads_using_jacrev(X_train, sol, L, torch.from_numpy(M), batch_size=batch_size).astype('float32')
-        
-        # print(torch.allclose(M1, M2, rtol=1e-3, atol=1e-5))
-        # breakpoint()
+        # GPU EGOP update
+        M2 = compute_EGOP_with_jacrev_laplacian(
+            X_train, sol, L, M, num_samples=20000, batch_size=2500
+        ).astype('float32')
 
-        M = M2
+        M = torch.from_numpy(M2).to(dev)
 
-        
-        Ms.append(M+0)
+        Ms.append(M.detach().cpu().numpy().copy())
         if name is not None:
-            hickle.dump(M, 'saved_Ms/M_' + name + '_' + str(i) + '.h')
+            hickle.dump(M.detach().cpu().numpy(), 'saved_Ms/M_' + name + '_' + str(i) + '.h')
 
-    # if iters>1:
+    # Final GPU solve
+    Xh_train = normalize(X_train)
+    K_train = laplacian(Xh_train, Xh_train, L, M)
+    I = torch.eye(K_train.shape[0], device=dev, dtype=K_train.dtype)
+    sol = torch.linalg.solve(K_train + reg * I, y_train).T
 
-    K_train = laplacian(normalize(X_train), normalize(X_train), L, torch.from_numpy(M).float()).numpy()
-    sol = solve(K_train + reg * np.eye(len(K_train)), y_train).T
+    sols.append(sol.detach().cpu().numpy())
+    print("Solved:", sol.shape)
 
-    sols.append(sol)
-    print("Solved:", sol.shape )
-
-    K_test = laplacian(normalize(X_train), normalize(X_test), L, torch.from_numpy(M).float()).numpy()
+    K_test = laplacian(Xh_train, Xh_test, L, M)
     preds = (sol @ K_test).T
-    mse = ((preds - y_test)**2).mean().item()
+    mse = ((preds - y_test) ** 2).mean().item()
     print("Final MSE: ", mse)
         
     if classif:
-        # y_pred = torch.from_numpy(preds)
         y_pred = preds
-        preds = torch.argmax(y_pred, dim=-1)
-        labels = torch.argmax(y_test, dim=-1)
-        count = torch.sum(labels == preds).numpy()
+        preds_idx = torch.argmax(y_pred, dim=-1)
+        labels = y_test.argmax(dim=-1) if y_test.ndim > 1 else y_test.long()
+        count = torch.sum(labels == preds_idx).item()
         print(" Final Acc: ", count / len(labels))
 
-        if 100*(count/len(labels)) > best_acc:
-            best_acc = 100*(count/len(labels))
+        if 100 * (count / len(labels)) > best_acc:
+            best_acc = 100 * (count / len(labels))
             round_best_acc = iters
 
         diff_acc = best_acc - kernel_acc
         
-    return Ms, mses, sols, L, X_train, y_train, best_acc, round_best_acc, diff_acc, kernel_acc
+    return Ms, mses, sols, L, X_train.detach().cpu(), y_train.detach().cpu(), best_acc, round_best_acc, diff_acc, kernel_acc
 
 def rfm_gaussian(train_loader, test_loader,
         iters=3, name=None, batch_size=2, reg=1e-3,
@@ -267,6 +286,9 @@ def rfm_gaussian(train_loader, test_loader,
         print("Loaders provided")
         X_train, y_train = get_data(train_loader)
         X_test, y_test = get_data(test_loader)
+        # y_mean = y_train.mean(dim=0, keepdim=True)
+        # print("y_mean:", y_mean)
+        # y_train = y_train - y_mean   # (1, C)
     else:
         X_train, y_train = train_loader
         X_test, y_test = test_loader
@@ -279,102 +301,105 @@ def rfm_gaussian(train_loader, test_loader,
 
     n, d = X_train.shape
 
-    M = np.eye(d, dtype='float32')
+    # Move once to GPU
+    X_train = X_train.to(dev)
+    X_test = X_test.to(dev)
+    y_train = y_train.to(dev)
+    y_test = y_test.to(dev)
+
+    M = torch.eye(d, device=dev, dtype=torch.float32)
     mses = []
     Ms = []
     sols = []
-    Ms.append(M+0)
+    Ms.append(M.detach().cpu().numpy().copy())
 
-    best_acc = 0
+    best_acc = 0.0
 
     round_best_acc = -1
 
     kernel_acc = 0.0
 
+    # Precompute normalized test once
+    Xh_test = normalize(X_test)
+
     for i in range(iters):
-        K_train = gaussian(normalize(X_train), normalize(X_train), L, torch.from_numpy(M)).numpy()
-        sol = solve(K_train + reg * np.eye(len(K_train)), y_train).T
+        Xh_train = normalize(X_train)
+        K_train = gaussian(Xh_train, Xh_train, L, M)
+        I = torch.eye(K_train.shape[0], device=dev, dtype=K_train.dtype)
+        sol = torch.linalg.solve(K_train + reg * I, y_train).T
         print("Solved:", sol.shape)
 
-        sols.append(sol)
+        sols.append(sol.detach().cpu().numpy())
+
         if train_acc:
             preds = (sol @ K_train).T
-            y_pred = torch.from_numpy(preds)
-            preds = torch.argmax(y_pred, dim=-1)
-            labels = torch.argmax(y_train, dim=-1)
-            count = torch.sum(labels == preds).numpy()
+            preds_idx = torch.argmax(preds, dim=-1)
+            labels = y_train.argmax(dim=-1) if y_train.ndim > 1 else y_train.long()
+            count = torch.sum(labels == preds_idx).item()
             print("Round " + str(i) + " Train Acc: ", count / len(labels))
 
-        K_test = gaussian(normalize(X_train), normalize(X_test), L, torch.from_numpy(M)).numpy()
+        K_test = gaussian(Xh_train, Xh_test, L, M)
         preds = (sol @ K_test).T
-#         print("preds",preds)
-#         print("y_test",y_test)
-        print(type(preds), type(y_test))
-        mse_ = np.mean(np.square(preds.numpy() - y_test.numpy()))
+
+        mse_ = ((preds - y_test) ** 2).mean().item()
         mses.append(mse_)
         print("Round " + str(i) + " MSE: ", mse_)
-        print(type(preds), type(y_test))
         
         if classif:
             y_pred = preds
-            preds = torch.argmax(y_pred, dim=-1)
-            labels = torch.argmax(y_test, dim=-1)
-            # labels = y_test
-            count = torch.sum(labels == preds).numpy()
-            # count = (labels == preds).sum().item()
-            print("Round " + str(i) + " Acc: ", (count / len(labels))*100)
-            # print("Round " + str(i) + " Acc: ", (count / labels.numel())*100)
+            preds_idx = torch.argmax(y_pred, dim=-1)
+            labels = y_test.argmax(dim=-1) if y_test.ndim > 1 else y_test.long()
+            count = torch.sum(labels == preds_idx).item()
+            print("Round " + str(i) + " Acc: ", (count / len(labels)) * 100)
 
             if i == 0:
-                kernel_acc = (count / len(labels))*100
+                kernel_acc = (count / len(labels)) * 100
 
-            # if 100*(count/labels.numel()) > best_acc:
-            if 100*(count/len(labels)) > best_acc:
-                best_acc = 100*(count/len(labels))
+            if 100 * (count / len(labels)) > best_acc:
+                best_acc = 100 * (count / len(labels))
                 round_best_acc = i
 
-        # M1  = get_grads_gaussian(X_train, sol, L, torch.from_numpy(M), batch_size=5000).astype('float32')
-        M2 = compute_EGOP_with_jacrev_gaussian(X_train, sol, L, torch.from_numpy(M), num_samples=20000, batch_size=5000).astype('float32')
-        
-        # print(np.allclose(M1, M2, rtol=1e-3, atol=1e-5))
+        M2 = compute_EGOP_with_jacrev_gaussian(
+            X_train, sol, L, M, num_samples=20000, batch_size=2500
+        ).astype('float32')
 
-        # breakpoint()
+        M = torch.from_numpy(M2).to(dev)
 
-        M = M2
-        
-        Ms.append(M+0)
+        # Checking normalization.
+        # M / (M.max() + 1e-30)
+
+
+        Ms.append(M.detach().cpu().numpy().copy())
         if name is not None:
-            hickle.dump(M, 'saved_Ms/M_' + name + '_' + str(i) + '.h')
+            hickle.dump(M.detach().cpu().numpy(), 'saved_Ms/M_' + name + '_' + str(i) + '.h')
 
-    K_train = gaussian(normalize(X_train), normalize(X_train), L, torch.from_numpy(M).float()).numpy()
-    sol = solve(K_train + reg * np.eye(len(K_train)), y_train).T
+    Xh_train = normalize(X_train)
+    K_train = gaussian(Xh_train, Xh_train, L, M)
+    I = torch.eye(K_train.shape[0], device=dev, dtype=K_train.dtype)
+    sol = torch.linalg.solve(K_train + reg * I, y_train).T
 
-    sols.append(sol)
-    print("Solved:", sol.shape )
+    sols.append(sol.detach().cpu().numpy())
+    print("Solved:", sol.shape)
 
-    K_test = gaussian(normalize(X_train), normalize(X_test), L, torch.from_numpy(M).float()).numpy()
+    K_test = gaussian(Xh_train, Xh_test, L, M)
     preds = (sol @ K_test).T
-    mse_ = np.mean(np.square(preds.numpy() - y_test.numpy()))
+    mse_ = ((preds - y_test) ** 2).mean().item()
     print("Final MSE: ", mse_)
     
     if classif:
         if iters == 0:
             i = 0
         y_pred = preds
-        preds = torch.argmax(y_pred, dim=-1)
-        labels = torch.argmax(y_test, dim=-1)
-        #labels = y_test
-        count = torch.sum(labels == preds).numpy()
-        #count = (labels == preds).sum().item()
-        print("Round " + str(i) + " Acc: ", (count / len(labels))*100)
-        #print("Round " + str(i) + " Acc: ", (count / labels.numel())*100)
+        preds_idx = torch.argmax(y_pred, dim=-1)
+        labels = y_test.argmax(dim=-1) if y_test.ndim > 1 else y_test.long()
+        count = torch.sum(labels == preds_idx).item()
+        print("Final Acc: ", (count / len(labels)) * 100)
 
-        #if 100*(count/labels.numel()) > best_acc:
-        if 100*(count/len(labels)) > best_acc:
-            best_acc = 100*(count/len(labels))
+        if 100 * (count / len(labels)) > best_acc:
+            best_acc = 100 * (count / len(labels))
             round_best_acc = iters
         
         diff_acc = best_acc - kernel_acc
     
         
-    return Ms, mses, sols, L, X_train, y_train, best_acc, round_best_acc, diff_acc, kernel_acc
+    return Ms, mses, sols, L, X_train.detach().cpu(), y_train.detach().cpu(), best_acc, round_best_acc, diff_acc, kernel_acc
