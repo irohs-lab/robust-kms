@@ -1,0 +1,178 @@
+[2026-03-29 01:56:15,990][__main__][INFO] - Used config: n_samples_to_attack: 1500
+data_split_to_attack: test
+save_attack_artifacts: true
+perform_training: true
+perform_training_grid_search_hparams: true
+perform_constraints_mining: false
+perform_constraints_ranking: false
+perform_constraints_soundness_evaluation: false
+perform_attack: true
+perform_projection: true
+data:
+  name: bank
+  params:
+    dataset_name: ${data.name}
+    data_file_path: ${data.paths.data_file_path}
+    metadata_file_path: ${data.paths.metadata_file_path}
+    encoding_method: one_hot_encoding
+    random_seed: 42
+    train_proportion: 0.87
+  paths:
+    data_dir_path: data/${data.name}/raw-data
+    data_file_path: ${data.paths.data_dir_path}/bank-full.csv
+    metadata_file_path: ${data.paths.data_dir_path}/bank.metadata.csv
+    constraints_dir_path: data/${data.name}/mined-constraints
+    raw_dcs_out_path: ${data.paths.constraints_dir_path}/bank-11cols__DC_threshold=0.01__fastadc_dcs.txt
+    evaluated_dcs_out_path: ${data.paths.constraints_dir_path}/bank-11cols__DC_threshold=0.01__fastadc_dcs__eval.csv
+ml_model:
+  model_type: kernel
+  model_artifact_path: trained-models/kernel/${data.name}-${ml_model.model_type}.pt
+  perform_training: ${perform_training}
+  perform_grid_search_hparams: ${perform_training_grid_search_hparams}
+  default_hparams:
+    kernel: laplacian
+    L: 0.5
+    reg: 0.001
+    version: kernel
+    iters: 0
+    egop_samples: 20000
+    egop_batch_size: 2500
+attack:
+  attack_name: cafa
+  random_init: true
+  random_seed: null
+  max_iter: 250
+  max_iter_tabpgd: 100
+  eps: 0.03333333333333333
+  step_size: 0.0003333333333333333
+  perturb_categorical_each_steps: 10
+constraints:
+  constrainer_params:
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    n_dcs: 5000
+    n_tuples: 1
+    limit_cost_ball: true
+    cost_ball_eps: 0.03333333333333333
+  projector_params:
+    upper_projection_budget_bound: 0.5
+  mining_params:
+    perform_constraints_mining: ${perform_constraints_mining}
+    perform_constraints_ranking: ${perform_constraints_ranking}
+    raw_dcs_out_path: ${data.paths.raw_dcs_out_path}
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    approx_violation_threshold: 0.01
+    path_to_fastadc_miner_jar: src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar
+    n_dcs_to_eval: 10000
+    n_tuples_to_eval: 1000
+    n_other_tuples_to_eval: 8000
+
+[2026-03-29 01:56:17,494][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.05, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:01:48,975][src.models.kernel][INFO] - Final Acc: 88.98
+[2026-03-29 02:01:49,638][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:01:49,638][src.models.kernel][INFO] - kernel=gaussian L=0.05 reg=0.01 => score=88.9812
+[2026-03-29 02:01:50,012][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.05, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:11:20,967][src.models.kernel][INFO] - Final Acc: 73.50
+[2026-03-29 02:11:21,658][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:11:21,660][src.models.kernel][INFO] - kernel=gaussian L=0.05 reg=0.001 => score=73.5040
+[2026-03-29 02:11:22,187][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.05, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:15:37,194][src.models.kernel][INFO] - Final Acc: 50.40
+[2026-03-29 02:15:37,964][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:15:37,964][src.models.kernel][INFO] - kernel=gaussian L=0.05 reg=0.0001 => score=50.3984
+[2026-03-29 02:15:38,472][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.125, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:24:16,335][src.models.kernel][INFO] - Final Acc: 90.25
+[2026-03-29 02:24:17,082][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:24:17,083][src.models.kernel][INFO] - kernel=gaussian L=0.125 reg=0.01 => score=90.2526
+[2026-03-29 02:24:17,615][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.125, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:27:27,229][src.models.kernel][INFO] - Final Acc: 73.81
+[2026-03-29 02:27:27,940][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:27:27,941][src.models.kernel][INFO] - kernel=gaussian L=0.125 reg=0.001 => score=73.8091
+[2026-03-29 02:27:28,344][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.125, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:34:31,659][src.models.kernel][INFO] - Final Acc: 51.64
+[2026-03-29 02:34:32,499][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:34:32,499][src.models.kernel][INFO] - kernel=gaussian L=0.125 reg=0.0001 => score=51.6359
+[2026-03-29 02:34:33,129][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.25, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:39:22,056][src.models.kernel][INFO] - Final Acc: 90.64
+[2026-03-29 02:39:22,888][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:39:22,888][src.models.kernel][INFO] - kernel=gaussian L=0.25 reg=0.01 => score=90.6425
+[2026-03-29 02:39:23,469][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.25, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:43:42,125][src.models.kernel][INFO] - Final Acc: 90.90
+[2026-03-29 02:43:42,932][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:43:42,932][src.models.kernel][INFO] - kernel=gaussian L=0.25 reg=0.001 => score=90.8968
+[2026-03-29 02:43:43,347][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.25, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:46:48,374][src.models.kernel][INFO] - Final Acc: 51.96
+[2026-03-29 02:46:49,420][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:46:49,420][src.models.kernel][INFO] - kernel=gaussian L=0.25 reg=0.0001 => score=51.9580
+[2026-03-29 02:46:49,997][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.5, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:51:04,457][src.models.kernel][INFO] - Final Acc: 90.56
+[2026-03-29 02:51:05,256][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:51:05,260][src.models.kernel][INFO] - kernel=gaussian L=0.5 reg=0.01 => score=90.5577
+[2026-03-29 02:51:05,844][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.5, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 02:57:16,349][src.models.kernel][INFO] - Final Acc: 90.76
+[2026-03-29 02:57:17,172][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 02:57:17,172][src.models.kernel][INFO] - kernel=gaussian L=0.5 reg=0.001 => score=90.7611
+[2026-03-29 02:57:17,703][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.5, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:00:30,680][src.models.kernel][INFO] - Final Acc: 74.91
+[2026-03-29 03:00:31,517][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:00:31,517][src.models.kernel][INFO] - kernel=gaussian L=0.5 reg=0.0001 => score=74.9110
+[2026-03-29 03:00:31,911][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=1.0, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:06:46,252][src.models.kernel][INFO] - Final Acc: 90.25
+[2026-03-29 03:06:47,102][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:06:47,102][src.models.kernel][INFO] - kernel=gaussian L=1 reg=0.01 => score=90.2526
+[2026-03-29 03:06:47,700][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=1.0, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:11:47,452][src.models.kernel][INFO] - Final Acc: 90.57
+[2026-03-29 03:11:48,152][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:11:48,152][src.models.kernel][INFO] - kernel=gaussian L=1 reg=0.001 => score=90.5747
+[2026-03-29 03:11:48,690][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=1.0, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:14:40,520][src.models.kernel][INFO] - Final Acc: 89.91
+[2026-03-29 03:14:41,535][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:14:41,535][src.models.kernel][INFO] - kernel=gaussian L=1 reg=0.0001 => score=89.9135
+[2026-03-29 03:14:41,778][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=2.0, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:22:23,337][src.models.kernel][INFO] - Final Acc: 89.78
+[2026-03-29 03:22:24,254][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:22:24,254][src.models.kernel][INFO] - kernel=gaussian L=2.0 reg=0.01 => score=89.7779
+[2026-03-29 03:22:24,761][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=2.0, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:28:41,214][src.models.kernel][INFO] - Final Acc: 90.42
+[2026-03-29 03:28:41,984][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:28:41,984][src.models.kernel][INFO] - kernel=gaussian L=2.0 reg=0.001 => score=90.4221
+[2026-03-29 03:28:42,531][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=2.0, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:33:47,875][src.models.kernel][INFO] - Final Acc: 90.49
+[2026-03-29 03:33:48,694][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:33:48,694][src.models.kernel][INFO] - kernel=gaussian L=2.0 reg=0.0001 => score=90.4899
+[2026-03-29 03:33:49,054][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=4.0, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:39:55,159][src.models.kernel][INFO] - Final Acc: 89.52
+[2026-03-29 03:39:55,915][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:39:55,915][src.models.kernel][INFO] - kernel=gaussian L=4.0 reg=0.01 => score=89.5236
+[2026-03-29 03:39:56,437][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=4.0, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:44:25,363][src.models.kernel][INFO] - Final Acc: 89.63
+[2026-03-29 03:44:26,133][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:44:26,133][src.models.kernel][INFO] - kernel=gaussian L=4.0 reg=0.001 => score=89.6254
+[2026-03-29 03:44:26,687][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=4.0, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:50:58,212][src.models.kernel][INFO] - Final Acc: 90.35
+[2026-03-29 03:50:58,985][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:50:58,985][src.models.kernel][INFO] - kernel=gaussian L=4.0 reg=0.0001 => score=90.3543
+[2026-03-29 03:50:59,393][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=6.0, reg=0.01, iters=0, n_train=33434, n_test=5899
+[2026-03-29 03:53:57,188][src.models.kernel][INFO] - Final Acc: 89.47
+[2026-03-29 03:53:57,928][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 03:53:57,928][src.models.kernel][INFO] - kernel=gaussian L=6.0 reg=0.01 => score=89.4728
+[2026-03-29 03:53:58,445][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=6.0, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 04:04:24,712][src.models.kernel][INFO] - Final Acc: 89.59
+[2026-03-29 04:04:25,481][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 04:04:25,481][src.models.kernel][INFO] - kernel=gaussian L=6.0 reg=0.001 => score=89.5915
+[2026-03-29 04:04:26,071][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=6.0, reg=0.0001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 04:10:46,599][src.models.kernel][INFO] - Final Acc: 89.93
+[2026-03-29 04:10:47,338][src.models.kernel][INFO] - Saved kernel artifact to outputs/bank-gaussian-kernel.pt
+[2026-03-29 04:10:47,338][src.models.kernel][INFO] - kernel=gaussian L=6.0 reg=0.0001 => score=89.9305
+[2026-03-29 04:10:47,338][src.models.kernel][INFO] - Best kernel hyperparameters: {'kernel': 'gaussian', 'L': 0.25, 'reg': 0.001, 'version': 'kernel', 'iters': 0}
+[2026-03-29 04:10:47,761][src.models.kernel][INFO] - Training kernel model: kernel=gaussian, L=0.25, reg=0.001, iters=0, n_train=33434, n_test=5899
+[2026-03-29 04:18:08,647][src.models.kernel][INFO] - Final Acc: 90.90
+[2026-03-29 04:18:09,401][src.models.kernel][INFO] - Saved kernel artifact to trained-models/kernel/bank-gaussian-kernel.pt
+[2026-03-29 04:18:09,401][src.models.utils][INFO] - Loading model from trained-models/kernel/bank-gaussian-kernel.pt
+[2026-03-29 04:18:09,612][art.estimators.classification.pytorch][INFO] - Inferred 0 hidden layers on PyTorch classifier.
+[2026-03-29 04:18:09,878][__main__][INFO] - Initializing constraint set and projector for the attack.
+[2026-03-29 04:19:12,745][__main__][INFO] - before-attack: {'is_misclassified_rate': 0.10466666666666667, 'is_comp_rate': 0.796, 'is_mis_and_comp_rate': 0.074, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}
+[2026-03-29 04:19:12,745][__main__][INFO] - Executing CaFA attack.
+[2026-03-29 04:37:40,679][__main__][INFO] - after-cafa: {'is_misclassified_rate': 0.3353333333333333, 'is_comp_rate': 0.6306666666666667, 'is_mis_and_comp_rate': 0.043333333333333335, 'l0_costs_mean': 1.9393333333333334, 'l0_costs_on_mis_mean': 5.783300198807157, 'l0_costs_on_mis_and_comp_mean': 3.1384615384615384, 'stand_linf_costs_mean': 0.009303417403554136, 'stand_linf_costs_on_mis_mean': 0.02774378947381949, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.026038215664976935}
+[2026-03-29 04:37:40,679][__main__][INFO] - Executing projection of the crafted samples onto the constrained space.
+[2026-03-29 05:01:01,564][__main__][INFO] - after-projection: {'is_misclassified_rate': 0.24866666666666667, 'is_comp_rate': 0.8633333333333333, 'is_mis_and_comp_rate': 0.13, 'l0_costs_mean': 2.4026666666666667, 'l0_costs_on_mis_mean': 6.2117962466487935, 'l0_costs_on_mis_and_comp_mean': 5.153846153846154, 'stand_linf_costs_mean': 0.010956308338390959, 'stand_linf_costs_on_mis_mean': 0.028801783770846266, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.02856370615042734}
+[2026-03-29 05:01:01,564][__main__][INFO] - Evaluations: {'before-attack': {'is_misclassified_rate': 0.10466666666666667, 'is_comp_rate': 0.796, 'is_mis_and_comp_rate': 0.074, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}, 'after-cafa': {'is_misclassified_rate': 0.3353333333333333, 'is_comp_rate': 0.6306666666666667, 'is_mis_and_comp_rate': 0.043333333333333335, 'l0_costs_mean': 1.9393333333333334, 'l0_costs_on_mis_mean': 5.783300198807157, 'l0_costs_on_mis_and_comp_mean': 3.1384615384615384, 'stand_linf_costs_mean': 0.009303417403554136, 'stand_linf_costs_on_mis_mean': 0.02774378947381949, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.026038215664976935}, 'after-cafa-projection': {'is_misclassified_rate': 0.24866666666666667, 'is_comp_rate': 0.8633333333333333, 'is_mis_and_comp_rate': 0.13, 'l0_costs_mean': 2.4026666666666667, 'l0_costs_on_mis_mean': 6.2117962466487935, 'l0_costs_on_mis_and_comp_mean': 5.153846153846154, 'stand_linf_costs_mean': 0.010956308338390959, 'stand_linf_costs_on_mis_mean': 0.028801783770846266, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.02856370615042734}}
+[2026-03-29 05:01:01,564][__main__][INFO] - Finished run. results saved in /users/student/rs/rahulky/robust-rfms/attack_tab/outputs/2026-03-29/01-56-15

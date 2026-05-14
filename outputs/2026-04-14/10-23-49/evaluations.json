@@ -1,0 +1,35 @@
+{
+    "before-attack": {
+        "is_misclassified_rate": 0.052307692307692305,
+        "is_comp_rate": 0.8530769230769231,
+        "is_mis_and_comp_rate": 0.04461538461538461,
+        "l0_costs_mean": 0.0,
+        "l0_costs_on_mis_mean": 0.0,
+        "l0_costs_on_mis_and_comp_mean": 0.0,
+        "stand_linf_costs_mean": 0.0,
+        "stand_linf_costs_on_mis_mean": 0.0,
+        "stand_linfcosts_costs_on_mis_and_comp_mean": 0.0
+    },
+    "after-cafa": {
+        "is_misclassified_rate": 1.0,
+        "is_comp_rate": 0.5623076923076923,
+        "is_mis_and_comp_rate": 0.5623076923076923,
+        "l0_costs_mean": 2.3784615384615386,
+        "l0_costs_on_mis_mean": 2.3784615384615386,
+        "l0_costs_on_mis_and_comp_mean": 1.9398084815321477,
+        "stand_linf_costs_mean": 0.3046307593954344,
+        "stand_linf_costs_on_mis_mean": 0.3046307593954344,
+        "stand_linfcosts_costs_on_mis_and_comp_mean": 0.2526427968625116
+    },
+    "after-cafa-projection": {
+        "is_misclassified_rate": 0.7984615384615384,
+        "is_comp_rate": 0.9753846153846154,
+        "is_mis_and_comp_rate": 0.7846153846153846,
+        "l0_costs_mean": 5.694615384615385,
+        "l0_costs_on_mis_mean": 4.804431599229287,
+        "l0_costs_on_mis_and_comp_mean": 4.684313725490196,
+        "stand_linf_costs_mean": 0.39894558098855554,
+        "stand_linf_costs_on_mis_mean": 0.3402773790374588,
+        "stand_linfcosts_costs_on_mis_and_comp_mean": 0.3378955465858494
+    }
+}

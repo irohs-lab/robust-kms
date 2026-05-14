@@ -1,0 +1,4 @@
+- data=bank
+- perform_training=True
+- perform_training_grid_search_hparams=True
+- perform_attack=True

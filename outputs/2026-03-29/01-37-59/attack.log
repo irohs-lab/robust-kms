@@ -1,0 +1,178 @@
+[2026-03-29 01:38:00,077][__main__][INFO] - Used config: n_samples_to_attack: 1500
+data_split_to_attack: test
+save_attack_artifacts: true
+perform_training: true
+perform_training_grid_search_hparams: true
+perform_constraints_mining: false
+perform_constraints_ranking: false
+perform_constraints_soundness_evaluation: false
+perform_attack: true
+perform_projection: true
+data:
+  name: phishing
+  params:
+    dataset_name: ${data.name}
+    data_file_path: ${data.paths.data_file_path}
+    metadata_file_path: ${data.paths.metadata_file_path}
+    encoding_method: one_hot_encoding
+    random_seed: 42
+    train_proportion: 0.87
+  paths:
+    data_dir_path: data/${data.name}/raw-data
+    data_file_path: ${data.paths.data_dir_path}/Phishing_Legitimate_full.arff
+    metadata_file_path: ${data.paths.data_dir_path}/phishing.metadata.csv
+    constraints_dir_path: data/${data.name}/mined-constraints
+    raw_dcs_out_path: ${data.paths.constraints_dir_path}/phishing-10cols__DC_threshold=0.01__fastadc_dcs.txt
+    evaluated_dcs_out_path: ${data.paths.constraints_dir_path}/phishing-10cols__DC_threshold=0.01__fastadc_dcs__eval.csv
+ml_model:
+  model_type: kernel
+  model_artifact_path: trained-models/kernel/${data.name}-${ml_model.model_type}.pt
+  perform_training: ${perform_training}
+  perform_grid_search_hparams: ${perform_training_grid_search_hparams}
+  default_hparams:
+    kernel: laplacian
+    L: 0.5
+    reg: 0.001
+    version: kernel
+    iters: 0
+    egop_samples: 20000
+    egop_batch_size: 2500
+attack:
+  attack_name: cafa
+  random_init: true
+  random_seed: null
+  max_iter: 250
+  max_iter_tabpgd: 100
+  eps: 0.03333333333333333
+  step_size: 0.0003333333333333333
+  perturb_categorical_each_steps: 10
+constraints:
+  constrainer_params:
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    n_dcs: 5000
+    n_tuples: 1
+    limit_cost_ball: true
+    cost_ball_eps: 0.03333333333333333
+  projector_params:
+    upper_projection_budget_bound: 0.5
+  mining_params:
+    perform_constraints_mining: ${perform_constraints_mining}
+    perform_constraints_ranking: ${perform_constraints_ranking}
+    raw_dcs_out_path: ${data.paths.raw_dcs_out_path}
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    approx_violation_threshold: 0.01
+    path_to_fastadc_miner_jar: src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar
+    n_dcs_to_eval: 10000
+    n_tuples_to_eval: 1000
+    n_other_tuples_to_eval: 8000
+
+[2026-03-29 01:38:00,716][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.05, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:02,739][src.models.kernel][INFO] - Final Acc: 92.41
+[2026-03-29 01:38:02,764][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:02,764][src.models.kernel][INFO] - kernel=laplacian L=0.05 reg=0.01 => score=92.4138
+[2026-03-29 01:38:02,804][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.05, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:04,923][src.models.kernel][INFO] - Final Acc: 89.58
+[2026-03-29 01:38:04,944][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:04,945][src.models.kernel][INFO] - kernel=laplacian L=0.05 reg=0.001 => score=89.5785
+[2026-03-29 01:38:04,985][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.05, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:07,209][src.models.kernel][INFO] - Final Acc: 89.27
+[2026-03-29 01:38:07,231][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:07,231][src.models.kernel][INFO] - kernel=laplacian L=0.05 reg=0.0001 => score=89.2720
+[2026-03-29 01:38:07,377][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.125, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:09,210][src.models.kernel][INFO] - Final Acc: 92.41
+[2026-03-29 01:38:09,231][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:09,231][src.models.kernel][INFO] - kernel=laplacian L=0.125 reg=0.01 => score=92.4138
+[2026-03-29 01:38:09,271][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.125, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:11,174][src.models.kernel][INFO] - Final Acc: 90.80
+[2026-03-29 01:38:11,202][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:11,202][src.models.kernel][INFO] - kernel=laplacian L=0.125 reg=0.001 => score=90.8046
+[2026-03-29 01:38:11,263][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.125, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:13,060][src.models.kernel][INFO] - Final Acc: 88.97
+[2026-03-29 01:38:13,081][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:13,081][src.models.kernel][INFO] - kernel=laplacian L=0.125 reg=0.0001 => score=88.9655
+[2026-03-29 01:38:13,122][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.25, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:14,889][src.models.kernel][INFO] - Final Acc: 92.18
+[2026-03-29 01:38:14,910][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:14,910][src.models.kernel][INFO] - kernel=laplacian L=0.25 reg=0.01 => score=92.1839
+[2026-03-29 01:38:14,951][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.25, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:16,784][src.models.kernel][INFO] - Final Acc: 79.85
+[2026-03-29 01:38:16,805][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:16,805][src.models.kernel][INFO] - kernel=laplacian L=0.25 reg=0.001 => score=79.8467
+[2026-03-29 01:38:16,845][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.25, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:18,609][src.models.kernel][INFO] - Final Acc: 91.03
+[2026-03-29 01:38:18,630][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:18,630][src.models.kernel][INFO] - kernel=laplacian L=0.25 reg=0.0001 => score=91.0345
+[2026-03-29 01:38:18,670][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.5, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:20,497][src.models.kernel][INFO] - Final Acc: 92.03
+[2026-03-29 01:38:20,518][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:20,518][src.models.kernel][INFO] - kernel=laplacian L=0.5 reg=0.01 => score=92.0307
+[2026-03-29 01:38:20,557][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.5, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:22,404][src.models.kernel][INFO] - Final Acc: 92.41
+[2026-03-29 01:38:22,426][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:22,426][src.models.kernel][INFO] - kernel=laplacian L=0.5 reg=0.001 => score=92.4138
+[2026-03-29 01:38:22,466][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=0.5, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:24,324][src.models.kernel][INFO] - Final Acc: 89.81
+[2026-03-29 01:38:24,345][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:24,345][src.models.kernel][INFO] - kernel=laplacian L=0.5 reg=0.0001 => score=89.8084
+[2026-03-29 01:38:24,485][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=1.0, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:28,592][src.models.kernel][INFO] - Final Acc: 92.03
+[2026-03-29 01:38:28,635][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:28,635][src.models.kernel][INFO] - kernel=laplacian L=1 reg=0.01 => score=92.0307
+[2026-03-29 01:38:28,708][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=1.0, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:32,592][src.models.kernel][INFO] - Final Acc: 92.41
+[2026-03-29 01:38:32,621][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:32,621][src.models.kernel][INFO] - kernel=laplacian L=1 reg=0.001 => score=92.4138
+[2026-03-29 01:38:32,721][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=1.0, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:36,764][src.models.kernel][INFO] - Final Acc: 90.88
+[2026-03-29 01:38:36,795][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:36,795][src.models.kernel][INFO] - kernel=laplacian L=1 reg=0.0001 => score=90.8812
+[2026-03-29 01:38:36,899][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=2.0, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:40,585][src.models.kernel][INFO] - Final Acc: 92.49
+[2026-03-29 01:38:40,631][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:40,631][src.models.kernel][INFO] - kernel=laplacian L=2.0 reg=0.01 => score=92.4904
+[2026-03-29 01:38:40,707][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=2.0, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:47,163][src.models.kernel][INFO] - Final Acc: 92.18
+[2026-03-29 01:38:47,202][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:47,243][src.models.kernel][INFO] - kernel=laplacian L=2.0 reg=0.001 => score=92.1839
+[2026-03-29 01:38:47,308][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=2.0, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:49,641][src.models.kernel][INFO] - Final Acc: 91.11
+[2026-03-29 01:38:49,663][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:49,663][src.models.kernel][INFO] - kernel=laplacian L=2.0 reg=0.0001 => score=91.1111
+[2026-03-29 01:38:49,702][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=4.0, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:51,790][src.models.kernel][INFO] - Final Acc: 92.26
+[2026-03-29 01:38:51,814][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:51,814][src.models.kernel][INFO] - kernel=laplacian L=4.0 reg=0.01 => score=92.2605
+[2026-03-29 01:38:51,854][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=4.0, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:54,147][src.models.kernel][INFO] - Final Acc: 92.26
+[2026-03-29 01:38:54,178][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:54,178][src.models.kernel][INFO] - kernel=laplacian L=4.0 reg=0.001 => score=92.2605
+[2026-03-29 01:38:54,237][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=4.0, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:56,054][src.models.kernel][INFO] - Final Acc: 87.66
+[2026-03-29 01:38:56,083][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:56,083][src.models.kernel][INFO] - kernel=laplacian L=4.0 reg=0.0001 => score=87.6628
+[2026-03-29 01:38:56,243][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=6.0, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:58,023][src.models.kernel][INFO] - Final Acc: 92.49
+[2026-03-29 01:38:58,045][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:58,045][src.models.kernel][INFO] - kernel=laplacian L=6.0 reg=0.01 => score=92.4904
+[2026-03-29 01:38:58,084][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=6.0, reg=0.001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:38:59,960][src.models.kernel][INFO] - Final Acc: 92.26
+[2026-03-29 01:38:59,988][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:38:59,988][src.models.kernel][INFO] - kernel=laplacian L=6.0 reg=0.001 => score=92.2605
+[2026-03-29 01:39:00,050][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=6.0, reg=0.0001, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:39:01,826][src.models.kernel][INFO] - Final Acc: 92.11
+[2026-03-29 01:39:01,848][src.models.kernel][INFO] - Saved kernel artifact to outputs/tmp_kernel_bank_lap.pt
+[2026-03-29 01:39:01,848][src.models.kernel][INFO] - kernel=laplacian L=6.0 reg=0.0001 => score=92.1073
+[2026-03-29 01:39:01,848][src.models.kernel][INFO] - Best kernel hyperparameters: {'kernel': 'laplacian', 'L': 2.0, 'reg': 0.01, 'version': 'kernel', 'iters': 0}
+[2026-03-29 01:39:01,888][src.models.kernel][INFO] - Training kernel model: kernel=laplacian, L=2.0, reg=0.01, iters=0, n_train=7395, n_test=1305
+[2026-03-29 01:39:03,753][src.models.kernel][INFO] - Final Acc: 92.49
+[2026-03-29 01:39:03,781][src.models.kernel][INFO] - Saved kernel artifact to trained-models/kernel/phishing-kernel.pt
+[2026-03-29 01:39:03,781][src.models.utils][INFO] - Loading model from trained-models/kernel/phishing-kernel.pt
+[2026-03-29 01:39:04,040][art.estimators.classification.pytorch][INFO] - Inferred 0 hidden layers on PyTorch classifier.
+[2026-03-29 01:39:04,277][__main__][INFO] - Initializing constraint set and projector for the attack.
+[2026-03-29 01:39:39,580][__main__][INFO] - before-attack: {'is_misclassified_rate': 0.07230769230769231, 'is_comp_rate': 0.8530769230769231, 'is_mis_and_comp_rate': 0.06307692307692307, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}
+[2026-03-29 01:39:39,581][__main__][INFO] - Executing CaFA attack.
+[2026-03-29 01:46:53,821][__main__][INFO] - after-cafa: {'is_misclassified_rate': 0.9738461538461538, 'is_comp_rate': 0.5146153846153846, 'is_mis_and_comp_rate': 0.4938461538461538, 'l0_costs_mean': 4.025384615384615, 'l0_costs_on_mis_mean': 4.13349131121643, 'l0_costs_on_mis_and_comp_mean': 3.3862928348909658, 'stand_linf_costs_mean': 0.022486327867685472, 'stand_linf_costs_on_mis_mean': 0.023090226088460602, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.020878008261251472}
+[2026-03-29 01:46:53,822][__main__][INFO] - Executing projection of the crafted samples onto the constrained space.
+[2026-03-29 02:02:38,446][__main__][INFO] - after-projection: {'is_misclassified_rate': 0.7792307692307693, 'is_comp_rate': 0.7815384615384615, 'is_mis_and_comp_rate': 0.6038461538461538, 'l0_costs_mean': 4.241538461538462, 'l0_costs_on_mis_mean': 4.463968410661402, 'l0_costs_on_mis_and_comp_mean': 4.031847133757962, 'stand_linf_costs_mean': 0.03549807311214235, 'stand_linf_costs_on_mis_mean': 0.030973346443267307, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.03014127938168903}
+[2026-03-29 02:02:38,447][__main__][INFO] - Evaluations: {'before-attack': {'is_misclassified_rate': 0.07230769230769231, 'is_comp_rate': 0.8530769230769231, 'is_mis_and_comp_rate': 0.06307692307692307, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}, 'after-cafa': {'is_misclassified_rate': 0.9738461538461538, 'is_comp_rate': 0.5146153846153846, 'is_mis_and_comp_rate': 0.4938461538461538, 'l0_costs_mean': 4.025384615384615, 'l0_costs_on_mis_mean': 4.13349131121643, 'l0_costs_on_mis_and_comp_mean': 3.3862928348909658, 'stand_linf_costs_mean': 0.022486327867685472, 'stand_linf_costs_on_mis_mean': 0.023090226088460602, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.020878008261251472}, 'after-cafa-projection': {'is_misclassified_rate': 0.7792307692307693, 'is_comp_rate': 0.7815384615384615, 'is_mis_and_comp_rate': 0.6038461538461538, 'l0_costs_mean': 4.241538461538462, 'l0_costs_on_mis_mean': 4.463968410661402, 'l0_costs_on_mis_and_comp_mean': 4.031847133757962, 'stand_linf_costs_mean': 0.03549807311214235, 'stand_linf_costs_on_mis_mean': 0.030973346443267307, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.03014127938168903}}
+[2026-03-29 02:02:38,447][__main__][INFO] - Finished run. results saved in /users/student/rs/rahulky/robust-rfms/attack_tab/outputs/2026-03-29/01-37-59

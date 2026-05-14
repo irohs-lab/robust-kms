@@ -1,0 +1,8 @@
+- data=adult
+- ml_model.model_type=kernel
+- ml_model.perform_training=False
+- ml_model.perform_grid_search_hparams=False
+- ml_model.model_artifact_path=./trained-models/adult-laplacian-kernel.pt
+- perform_attack=True
+- perform_projection=True
+- data_split_to_attack=test

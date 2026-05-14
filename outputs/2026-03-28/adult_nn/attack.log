@@ -1,0 +1,107 @@
+[2026-03-28 23:49:46,771][__main__][INFO] - Used config: n_samples_to_attack: 1500
+data_split_to_attack: test
+save_attack_artifacts: true
+perform_training: true
+perform_training_grid_search_hparams: true
+perform_constraints_mining: false
+perform_constraints_ranking: false
+perform_constraints_soundness_evaluation: false
+perform_attack: true
+perform_projection: true
+data:
+  name: adult
+  params:
+    dataset_name: ${data.name}
+    data_file_path: ${data.paths.data_file_path}
+    metadata_file_path: ${data.paths.metadata_file_path}
+    encoding_method: one_hot_encoding
+    random_seed: 42
+    train_proportion: 0.87
+  paths:
+    data_dir_path: data/${data.name}/raw-data
+    data_file_path: ${data.paths.data_dir_path}/adult.data
+    metadata_file_path: ${data.paths.data_dir_path}/adult.metadata.csv
+    constraints_dir_path: data/${data.name}/mined-constraints
+    raw_dcs_out_path: ${data.paths.constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs.txt
+    evaluated_dcs_out_path: ${data.paths.constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs__eval.csv
+ml_model:
+  model_type: mlp
+  model_artifact_path: trained-models/${data.name}-${ml_model.model_type}.ckpt
+  perform_training: ${perform_training}
+  perform_grid_search_hparams: ${perform_training_grid_search_hparams}
+  default_hparams:
+    n_layers: 3
+    hidden_dim: 128
+    lr: 0.001
+    weight_decay: 1.0e-05
+attack:
+  attack_name: cafa
+  random_init: true
+  random_seed: null
+  max_iter: 250
+  max_iter_tabpgd: 100
+  eps: 0.03333333333333333
+  step_size: 0.0003333333333333333
+  perturb_categorical_each_steps: 10
+constraints:
+  constrainer_params:
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    n_dcs: 5000
+    n_tuples: 1
+    limit_cost_ball: true
+    cost_ball_eps: 0.03333333333333333
+  projector_params:
+    upper_projection_budget_bound: 0.5
+  mining_params:
+    perform_constraints_mining: ${perform_constraints_mining}
+    perform_constraints_ranking: ${perform_constraints_ranking}
+    raw_dcs_out_path: ${data.paths.raw_dcs_out_path}
+    evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+    approx_violation_threshold: 0.01
+    path_to_fastadc_miner_jar: src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar
+    n_dcs_to_eval: 10000
+    n_tuples_to_eval: 1000
+    n_other_tuples_to_eval: 8000
+
+[2026-03-28 23:50:11,587][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.38729026913642883, 'best_val_acc': 0.7658272385597229, 'best_val_hp_metric': 0.5, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_2/checkpoints/epoch=0-val_hp_metric=0.500.ckpt', 'best_model_val_hp_metric': tensor(0.5000, device='cuda:0')}
+[2026-03-28 23:50:31,779][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5455881357192993, 'best_val_acc': 0.7658272385597229, 'best_val_hp_metric': 0.5, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_3/checkpoints/epoch=0-val_hp_metric=0.500.ckpt', 'best_model_val_hp_metric': tensor(0.5000, device='cuda:0')}
+[2026-03-28 23:50:51,486][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.7066012620925903, 'best_val_acc': 0.23558484017848969, 'best_val_hp_metric': 0.5009243488311768, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_4/checkpoints/epoch=6-val_hp_metric=0.501.ckpt', 'best_model_val_hp_metric': tensor(0.5009, device='cuda:0')}
+[2026-03-28 23:51:10,928][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.4919436573982239, 'best_val_acc': 0.7658272385597229, 'best_val_hp_metric': 0.5, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_5/checkpoints/epoch=16-val_hp_metric=0.634.ckpt', 'best_model_val_hp_metric': tensor(0.6341, device='cuda:0')}
+[2026-03-28 23:51:30,171][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.33928683400154114, 'best_val_acc': 0.8411390781402588, 'best_val_hp_metric': 0.7472596168518066, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_6/checkpoints/epoch=97-val_hp_metric=0.748.ckpt', 'best_model_val_hp_metric': tensor(0.7481, device='cuda:0')}
+[2026-03-28 23:51:53,492][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.6938427686691284, 'best_val_acc': 0.46246176958084106, 'best_val_hp_metric': 0.5921613574028015, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_10/checkpoints/epoch=99-val_hp_metric=0.592.ckpt', 'best_model_val_hp_metric': tensor(0.5922, device='cuda:0')}
+[2026-03-28 23:52:13,761][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.43478038907051086, 'best_val_acc': 0.8333725333213806, 'best_val_hp_metric': 0.7809410691261292, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_12/checkpoints/epoch=1-val_hp_metric=0.799.ckpt', 'best_model_val_hp_metric': tensor(0.7989, device='cuda:0')}
+[2026-03-28 23:52:33,528][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.4419097602367401, 'best_val_acc': 0.8364320993423462, 'best_val_hp_metric': 0.755386471748352, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_13/checkpoints/epoch=1-val_hp_metric=0.806.ckpt', 'best_model_val_hp_metric': tensor(0.8058, device='cuda:0')}
+[2026-03-28 23:52:53,128][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.563002347946167, 'best_val_acc': 0.8314897418022156, 'best_val_hp_metric': 0.7591376304626465, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_14/checkpoints/epoch=1-val_hp_metric=0.814.ckpt', 'best_model_val_hp_metric': tensor(0.8135, device='cuda:0')}
+[2026-03-28 23:53:12,863][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.6341778039932251, 'best_val_acc': 0.8284302353858948, 'best_val_hp_metric': 0.7603408694267273, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_15/checkpoints/epoch=1-val_hp_metric=0.802.ckpt', 'best_model_val_hp_metric': tensor(0.8020, device='cuda:0')}
+[2026-03-28 23:53:32,528][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5304772853851318, 'best_val_acc': 0.8319604396820068, 'best_val_hp_metric': 0.7734407782554626, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_16/checkpoints/epoch=1-val_hp_metric=0.820.ckpt', 'best_model_val_hp_metric': tensor(0.8196, device='cuda:0')}
+[2026-03-28 23:53:52,766][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.8097015619277954, 'best_val_acc': 0.8274888396263123, 'best_val_hp_metric': 0.7517019510269165, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_19/checkpoints/epoch=1-val_hp_metric=0.797.ckpt', 'best_model_val_hp_metric': tensor(0.7972, device='cuda:0')}
+[2026-03-28 23:54:12,902][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5322432518005371, 'best_val_acc': 0.8326665163040161, 'best_val_hp_metric': 0.762786328792572, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_21/checkpoints/epoch=1-val_hp_metric=0.805.ckpt', 'best_model_val_hp_metric': tensor(0.8051, device='cuda:0')}
+[2026-03-28 23:54:32,792][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.44345951080322266, 'best_val_acc': 0.8418451547622681, 'best_val_hp_metric': 0.7784103155136108, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_23/checkpoints/epoch=1-val_hp_metric=0.809.ckpt', 'best_model_val_hp_metric': tensor(0.8093, device='cuda:0')}
+[2026-03-28 23:54:52,281][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5088678002357483, 'best_val_acc': 0.8340786099433899, 'best_val_hp_metric': 0.7412815690040588, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_24/checkpoints/epoch=1-val_hp_metric=0.818.ckpt', 'best_model_val_hp_metric': tensor(0.8177, device='cuda:0')}
+[2026-03-28 23:55:12,472][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5621156692504883, 'best_val_acc': 0.8265474438667297, 'best_val_hp_metric': 0.7615050077438354, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_27/checkpoints/epoch=1-val_hp_metric=0.813.ckpt', 'best_model_val_hp_metric': tensor(0.8127, device='cuda:0')}
+[2026-03-28 23:55:32,390][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.4747467041015625, 'best_val_acc': 0.83784419298172, 'best_val_hp_metric': 0.7556954026222229, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_29/checkpoints/epoch=0-val_hp_metric=0.805.ckpt', 'best_model_val_hp_metric': tensor(0.8052, device='cuda:0')}
+[2026-03-28 23:55:52,964][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.6146032810211182, 'best_val_acc': 0.8296069502830505, 'best_val_hp_metric': 0.7627007365226746, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_33/checkpoints/epoch=1-val_hp_metric=0.801.ckpt', 'best_model_val_hp_metric': tensor(0.8012, device='cuda:0')}
+[2026-03-28 23:56:13,834][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.3448236882686615, 'best_val_acc': 0.8451400399208069, 'best_val_hp_metric': 0.7587472796440125, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_39/checkpoints/epoch=1-val_hp_metric=0.808.ckpt', 'best_model_val_hp_metric': tensor(0.8081, device='cuda:0')}
+[2026-03-28 23:56:34,550][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.49914973974227905, 'best_val_acc': 0.8314897418022156, 'best_val_hp_metric': 0.771600604057312, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_44/checkpoints/epoch=1-val_hp_metric=0.820.ckpt', 'best_model_val_hp_metric': tensor(0.8202, device='cuda:0')}
+[2026-03-28 23:56:54,533][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.37865275144577026, 'best_val_acc': 0.8420804738998413, 'best_val_hp_metric': 0.779302179813385, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_46/checkpoints/epoch=1-val_hp_metric=0.818.ckpt', 'best_model_val_hp_metric': tensor(0.8184, device='cuda:0')}
+[2026-03-28 23:57:15,574][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.32818758487701416, 'best_val_acc': 0.8500823974609375, 'best_val_hp_metric': 0.7709339261054993, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_52/checkpoints/epoch=1-val_hp_metric=0.826.ckpt', 'best_model_val_hp_metric': tensor(0.8256, device='cuda:0')}
+[2026-03-28 23:57:35,113][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.3194568157196045, 'best_val_acc': 0.8444339632987976, 'best_val_hp_metric': 0.7808856964111328, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_53/checkpoints/epoch=1-val_hp_metric=0.818.ckpt', 'best_model_val_hp_metric': tensor(0.8185, device='cuda:0')}
+[2026-03-28 23:57:56,187][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.3391931354999542, 'best_val_acc': 0.8430218696594238, 'best_val_hp_metric': 0.7850843071937561, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_59/checkpoints/epoch=1-val_hp_metric=0.816.ckpt', 'best_model_val_hp_metric': tensor(0.8157, device='cuda:0')}
+[2026-03-28 23:58:20,079][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.541624128818512, 'best_val_acc': 0.8260767459869385, 'best_val_hp_metric': 0.7628179788589478, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_73/checkpoints/epoch=1-val_hp_metric=0.811.ckpt', 'best_model_val_hp_metric': tensor(0.8106, device='cuda:0')}
+[2026-03-28 23:58:42,077][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.4883214831352234, 'best_val_acc': 0.8237232565879822, 'best_val_hp_metric': 0.7655545473098755, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_82/checkpoints/epoch=1-val_hp_metric=0.808.ckpt', 'best_model_val_hp_metric': tensor(0.8081, device='cuda:0')}
+[2026-03-28 23:59:01,818][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5375794172286987, 'best_val_acc': 0.838079571723938, 'best_val_hp_metric': 0.7551286816596985, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_83/checkpoints/epoch=1-val_hp_metric=0.818.ckpt', 'best_model_val_hp_metric': tensor(0.8180, device='cuda:0')}
+[2026-03-28 23:59:21,924][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.5138021111488342, 'best_val_acc': 0.8258413672447205, 'best_val_hp_metric': 0.7799064517021179, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_85/checkpoints/epoch=1-val_hp_metric=0.811.ckpt', 'best_model_val_hp_metric': tensor(0.8113, device='cuda:0')}
+[2026-03-28 23:59:41,601][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.6400370597839355, 'best_val_acc': 0.8091315627098083, 'best_val_hp_metric': 0.7476880550384521, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_86/checkpoints/epoch=0-val_hp_metric=0.815.ckpt', 'best_model_val_hp_metric': tensor(0.8152, device='cuda:0')}
+[2026-03-28 23:59:45,585][src.models.mlp][INFO] - Finished grid search. Best hyperparameters found: {'n_layers': 2, 'hidden_dim': 64, 'lr': 0.008066415560584746, 'weight_decay': 0.0007435257902343505}
+[2026-03-29 00:00:05,298][src.models.mlp][INFO] - Saved model's artifact to trained-models/adult-mlp.ckpt
+[2026-03-29 00:00:05,298][src.models.mlp][INFO] - Finished training. Results: {'best_val_loss': 0.336256742477417, 'best_val_acc': 0.8420804738998413, 'best_val_hp_metric': 0.77518630027771, 'best_model_path': 'outputs/training/mlps/adult/lightning_logs/version_102/checkpoints/epoch=1-val_hp_metric=0.806.ckpt', 'best_model_val_hp_metric': tensor(0.8060, device='cuda:0')}
+[2026-03-29 00:00:05,299][src.models.utils][INFO] - Loading model from trained-models/adult-mlp.ckpt
+[2026-03-29 00:00:05,428][art.estimators.classification.pytorch][INFO] - Inferred 2 hidden layers on PyTorch classifier.
+[2026-03-29 00:00:05,505][__main__][INFO] - Initializing constraint set and projector for the attack.
+[2026-03-29 00:01:45,870][__main__][INFO] - before-attack: {'is_misclassified_rate': 0.16333333333333333, 'is_comp_rate': 0.712, 'is_mis_and_comp_rate': 0.11066666666666666, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}
+[2026-03-29 00:01:45,870][__main__][INFO] - Executing CaFA attack.
+[2026-03-29 00:07:26,144][__main__][INFO] - after-cafa: {'is_misclassified_rate': 0.8826666666666667, 'is_comp_rate': 0.30466666666666664, 'is_mis_and_comp_rate': 0.21866666666666668, 'l0_costs_mean': 7.886, 'l0_costs_on_mis_mean': 8.93429003021148, 'l0_costs_on_mis_and_comp_mean': 3.0091463414634148, 'stand_linf_costs_mean': 0.03636832638152134, 'stand_linf_costs_on_mis_mean': 0.041202786686013605, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.03418952653804434}
+[2026-03-29 00:07:26,144][__main__][INFO] - Executing projection of the crafted samples onto the constrained space.
+[2026-03-29 00:29:42,686][__main__][INFO] - after-projection: {'is_misclassified_rate': 0.7346666666666667, 'is_comp_rate': 0.576, 'is_mis_and_comp_rate': 0.31933333333333336, 'l0_costs_mean': 8.226, 'l0_costs_on_mis_mean': 9.258620689655173, 'l0_costs_on_mis_and_comp_mean': 4.883089770354906, 'stand_linf_costs_mean': 0.038207129945427784, 'stand_linf_costs_on_mis_mean': 0.042243105612350146, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.03902949346514836}
+[2026-03-29 00:29:42,686][__main__][INFO] - Evaluations: {'before-attack': {'is_misclassified_rate': 0.16333333333333333, 'is_comp_rate': 0.712, 'is_mis_and_comp_rate': 0.11066666666666666, 'l0_costs_mean': 0.0, 'l0_costs_on_mis_mean': 0.0, 'l0_costs_on_mis_and_comp_mean': 0.0, 'stand_linf_costs_mean': 0.0, 'stand_linf_costs_on_mis_mean': 0.0, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.0}, 'after-cafa': {'is_misclassified_rate': 0.8826666666666667, 'is_comp_rate': 0.30466666666666664, 'is_mis_and_comp_rate': 0.21866666666666668, 'l0_costs_mean': 7.886, 'l0_costs_on_mis_mean': 8.93429003021148, 'l0_costs_on_mis_and_comp_mean': 3.0091463414634148, 'stand_linf_costs_mean': 0.03636832638152134, 'stand_linf_costs_on_mis_mean': 0.041202786686013605, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.03418952653804434}, 'after-cafa-projection': {'is_misclassified_rate': 0.7346666666666667, 'is_comp_rate': 0.576, 'is_mis_and_comp_rate': 0.31933333333333336, 'l0_costs_mean': 8.226, 'l0_costs_on_mis_mean': 9.258620689655173, 'l0_costs_on_mis_and_comp_mean': 4.883089770354906, 'stand_linf_costs_mean': 0.038207129945427784, 'stand_linf_costs_on_mis_mean': 0.042243105612350146, 'stand_linfcosts_costs_on_mis_and_comp_mean': 0.03902949346514836}}
+[2026-03-29 00:29:42,687][__main__][INFO] - Finished run. results saved in /users/student/rs/rahulky/robust-rfms/attack_tab/outputs/2026-03-28/23-49-46
