@@ -64,9 +64,17 @@ In the below directory structure *mc* is for multiclass, *pairwise* is for binar
 ├── best_nn.py
 ├── adv_trn.py
 ├── FCNN_nn_<dataset>_per_class
+    ├── l2_eps_1.0  # It stores adversarially trained neural nets, trained in l2 for epsilon 1.0
+    ├── linf_eps_6 # It stores adversarially trained neural nets, trained in linf for epsilon 6/255
 ├── FCNN_nn_<dataset>_mc
+    ├── l2_eps_1.0
+    ├── linf_eps_6
 ├── FCNN_lenet_<dataset>_per_class
+    ├── l2_eps_1.0
+    ├── linf_eps_6
 ├── FCNN_lenet_<dataset>_mc
+    ├── l2_eps_1.0
+    ├── linf_eps_6
 
 ├── attack_nn.py
 ├── attack_adv_nn.py
@@ -481,6 +489,20 @@ Containing:
 ---
 
 # Attack Codes
+
+Before attack run `python json_creator.py --root_dir {Directory_where_the_models_to_be_attacked_are_saved} \
+    --output_file {output_file_name.json}
+For LeNet's benign training, keep output_file_name to be *fcnn_sgd_bin_best_{dataset}_mc_runs.json* for multiclass, for pairwise keep it as  *lenet_{dataset}_per_class.json*.
+For LeNet's adversarial training, keep output_file_name to be *./l2_eps_1.0/lenet_{dataset}_per_class.json* or *./linf_eps_6/lenet_{dataset}_per_class.json*.
+
+For NN's benign training, keep output_file_name to be *fcnn_sgd_bin_best_{dataset}_mc_runs.json* for multiclass, for pairwise keep it as  *fcnn_sgd_bin_best_{dataset}_class_pair_runs.json*.
+For NN's adversarial training, keep output_file_name to be *file_paths_l2_eps_1.0.json* or *file_paths_linf_eps_6.json*
+
+For KRR or RFM, keep output_file_name to be *./{dataset}2/{kernel}_{version}/{kernel}_{version}.json* for binary, for multiclass keep it as  *./{dataset}2/{kernel}_{version}_mc/{kernel}_{version}.json*.
+
+For RFF training, keep output_file_name to be *{dataset}_mc_rff_results.json*, for multiclass, and *rff_{kernel}_{dataset}_pairwise.json. Here, *{kernel}* takes either "laplace" or "gaussian".
+
+Wherever we need json files, these paths can be given like in `attack_nn.py` for 1v1 case.
 
 # 1. Attack Clean Neural Networks / RFF
 
