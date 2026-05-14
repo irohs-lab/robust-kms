@@ -547,9 +547,9 @@ if __name__ == "__main__":
 
     if mc == False and Dataset != "bank":
         print("Running per-class pairwise sweep...")
-        # classes1 = [0,1,2,3,4,5,6,7,8]
-        # classes2 = [1,2,3,4,5,6,7,8,9] 
-        classes1 = [5,6]
+        classes1 = [0,1,2,3,4,5,6,7,8]
+        classes2 = [1,2,3,4,5,6,7,8,9] 
+
 
     global trainloader
     global valloader
