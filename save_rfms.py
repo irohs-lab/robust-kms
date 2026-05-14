@@ -34,6 +34,12 @@ parser.add_argument('--mc', action = 'store_true')
 args = parser.parse_args()
 # os.makedirs("./svhn2", exist_ok=True)
 
+save_dir = f"./{args.dataset}2/{args.kernel}_{args.version}"
+if args.mc:
+    save_dir += "_mc"
+
+os.makedirs(save_dir, exist_ok=True)
+
 global trainloader
 global valloader
 global testloader
@@ -157,9 +163,9 @@ if args.kernel == "laplacian":
     }
     if args.metrics_only:
         if args.mc == False:
-            metrics_path = f"./{args.dataset}2/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
+            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
         else:
-            metrics_path = f"./{args.dataset}2/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
+            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
 
         with open(metrics_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, indent=2))
@@ -177,13 +183,13 @@ if args.kernel == "laplacian":
         if args.mc == False:
             torch.save(
                 payload,
-                f"./{args.dataset}2/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
+                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
                 pickle_protocol=4,
             )
         else:
             torch.save(
                 payload,
-                f"./{args.dataset}2/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
+                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
                 pickle_protocol=4,
             )
 
@@ -218,9 +224,9 @@ elif args.kernel == "gaussian":
     }
     if args.metrics_only:
         if args.mc == False:
-            metrics_path = f"./{args.dataset}2/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
+            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
         else:
-            metrics_path = f"./{args.dataset}2/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
+            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
         with open(metrics_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, indent=2))
     else:
@@ -237,12 +243,12 @@ elif args.kernel == "gaussian":
         if args.mc == False:
             torch.save(
                 payload,
-                f"./{args.dataset}2/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
+                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
                 pickle_protocol=4,
             )
         else:
             torch.save(
                 payload,
-                f"./{args.dataset}2/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
+                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
                 pickle_protocol=4,
             )
