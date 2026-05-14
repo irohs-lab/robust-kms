@@ -624,32 +624,7 @@ All scripts save:
 ```bash
 PGD_result_*.json
 ```
-
-Containing:
-
-- epsilon
-- step size
-- robust accuracy
-- model metadata
-
 ---
-
-# Epsilon Sweep
-
-ℓ∞:
-
-```math
-\epsilon \in \{0,0.1,1,2,4,6,8,12,20\}/255
-```
-
-ℓ₂:
-
-```math
-\epsilon \in \{0,0.5,1,2,4,6,8\}
-```
-
----
-
 # Reproducibility
 
 All experiments use:
@@ -659,3 +634,35 @@ All experiments use:
 - identical train/validation/test splits
 
 ---
+
+# For CaFA:-
+```
+cd cafa
+conda env create -f tab_attack.yml
+conda activate tab_attack
+
+pip install pytictoc
+pip install git+https://github.com/fra31/auto-attack
+pip install -I git+https://github.com/parthe/torchkernels
+```
+You can run cafa attack on KRR, RFM or NN using this command, i.e, `python sweep_cafa.py`.
+To change the dataset and model to be attacked, just change this snippet in the code, 
+```
+# datasets = ["adult","bank", "phishing"] # We can also evaluate on multiple datasets at once, in that case uncomment this line.
+datasets = ["adult"] # Either we can evaluate over single dataset, in that case use this line with appropriate dataset name
+# models = ["mlp"] # models can be ["mlp"],["rfm"],["kernel"]
+models = ["rfm"] # Only laplacian for now.
+# models = ["rfm"]
+```
+by uncommenting appropriate datasets and models.
+*datasets* can take values in "adult", "bank" or "phishing".
+While models can be "mlp" for FCNN, "rfm" for Recursive Feature Machines and "kernel" for Kernel Ridge Regressors, currently it only supports Laplacian Kernel.
+
+Here, see used is 0. We can also, change the $\ell_\infty$ epsilons on which our attack is to be evaluated by having appropriate values for eps_values. 
+```
+# eps_values = [0.01, 0.03333333333333333 , 0.075]
+eps_values = [0.075]
+```
+Also, in the code `base_out` is the directory to which the output will be saved. The consolidated results can be seen in `base_out/evaluations.json`.
+This CaFA attack is taken from [CaFA](https://github.com/matanbt/attack-tabular), we have optimized it to evaluate our attack only on the compliant samples.
+
