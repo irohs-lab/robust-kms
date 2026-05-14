@@ -1,6 +1,0 @@
-n_layers: 3
-hidden_dim: 512
-lr: 0.003226006741332407
-weight_decay: 3.257151732909261e-05
-input_dim: 18
-output_dim: 2

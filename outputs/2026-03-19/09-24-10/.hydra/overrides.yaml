@@ -1,3 +1,0 @@
-- ml_model=kernel
-- ml_model.perform_training=True
-- perform_attack=True

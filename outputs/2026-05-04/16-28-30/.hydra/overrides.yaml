@@ -1,5 +1,0 @@
-- data=adult
-- ml_model.model_type=kernel
-- ml_model.perform_training=false
-- ml_model.perform_grid_search_hparams=false
-- ml_model.model_artifact_path=trained-models/kernel/ad
