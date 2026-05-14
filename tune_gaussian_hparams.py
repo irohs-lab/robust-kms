@@ -7,14 +7,14 @@ import torch
 import argparse
 
 
-parser = argparse.ArgumentParser()
+# parser = argparse.ArgumentParser()
 
-#Only to be uncommented while using fmnist
-# parser.add_argument('--class1', type=int, default=4, help='Class data to use from fmnist dataset')
-# parser.add_argument('--class2', type=int, default=2, help='Class data to use from fmnist dataset')
-parser.add_argument('--Feature_IDX', type=int, default=31, help='Feature index to use from celeba dataset')
+# #Only to be uncommented while using fmnist
+# # parser.add_argument('--class1', type=int, default=4, help='Class data to use from fmnist dataset')
+# # parser.add_argument('--class2', type=int, default=2, help='Class data to use from fmnist dataset')
+# parser.add_argument('--Feature_IDX', type=int, default=31, help='Feature index to use from celeba dataset')
 
-args = parser.parse_args()
+# args = parser.parse_args()
 
 # Adjust these grids to sweep different values per kernel.
 SWEEPS = {
