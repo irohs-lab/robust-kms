@@ -1,0 +1,27 @@
+{
+  "data_root": "/janaki/common/Datasets/rahulky",
+  "output": "runs/fashion01-matern52-eps8-255",
+  "device": "cuda:0",
+  "epochs": 100,
+  "batch_size": 128,
+  "eval_every": 1,
+  "lam": 1.0,
+  "step_size": 0.0003332222592469177,
+  "decay": 0.6,
+  "length_scale": 8.904768943786621,
+  "seed": 42,
+  "attack_batch_size": 128,
+  "center_tile": 4096,
+  "query_tile": 128,
+  "epsilon": 0.03137254901960784,
+  "rho": 0.03137254901960784,
+  "classes": [
+    0,
+    1
+  ],
+  "train_samples": 12000,
+  "test_samples": 2000,
+  "kernel": "matern52",
+  "code_commit": "7611f52e4262283ff0f135754131848e5c0d3d31",
+  "autoattack_commit": "a39220048b3c9f2cca9a4d3a54604793c68eca7e"
+}
