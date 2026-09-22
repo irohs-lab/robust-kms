@@ -17,4 +17,6 @@ def parse():
   parser.add_argument("--attack-batch-size", type=int, default=128)
   parser.add_argument("--center-tile", type=int, default=4096)
   parser.add_argument("--query-tile", type=int, default=128)
+  parser.add_argument("--validation-fraction", type=float, default=0.)
+  parser.add_argument("--patience", type=int, default=10)
   return parser.parse_args()

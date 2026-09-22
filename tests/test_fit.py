@@ -24,7 +24,7 @@ def test_seeded_fit_and_averaging():
 def test_invalid_hyperparameters_and_labels():
   x, y = torch.zeros(3, 2), torch.zeros(3)
   options = dict(rho=0.1, lam=0.5, step_size=0.02, batch_size=2, iterations=1)
-  for replacement in (dict(decay=0.5), dict(step_size=3), dict(lam=0),
+  for replacement in (dict(decay=0.5), dict(step_size=3), dict(lam=-1),
                       dict(rho=-1), dict(batch_size=4), dict(kernel="rff")):
     try:
       rk.fit(x, y, **(options | replacement))

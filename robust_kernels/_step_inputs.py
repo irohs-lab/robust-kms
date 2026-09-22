@@ -5,10 +5,10 @@ import torch
 def validate(centers, labels, state, batch, rho, lam, eta):
   if not math.isfinite(rho) or rho < 0:
     raise ValueError("rho must be finite and nonnegative")
-  if not math.isfinite(lam) or lam <= 0:
-    raise ValueError("lam must be finite and positive")
-  if not math.isfinite(eta) or not 0 < eta <= 1 / lam:
-    raise ValueError("eta must satisfy 0 < eta <= 1 / lam")
+  if not math.isfinite(lam) or lam < 0:
+    raise ValueError("lam must be finite and nonnegative")
+  if not math.isfinite(eta) or eta <= 0 or (lam > 0 and eta * lam > 1):
+    raise ValueError("eta must be positive, with eta * lam <= 1")
   if labels.shape != (len(centers),) or labels.device != centers.device:
     raise ValueError("labels must have shape (n,) on centers.device")
   if batch.ndim != 1 or batch.dtype != torch.long or batch.numel() == 0:

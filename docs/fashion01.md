@@ -90,3 +90,26 @@ AutoAttack configuration. Each budget has its own log, configuration, and
 adversarial examples. The manifest records the checkpoint SHA-256 and training
 epsilon separately from the attack epsilon. Results accumulate in results.json.
 The output directory must be new.
+
+## Zero RKHS regularization and validation early stopping
+
+```bash
+python -m experiments.queue_fashion \
+  --output runs/fashion01-matern52-lambda0-val --device cuda:0 \
+  --lam 0 --validation-fraction 0.1 --patience 10 --epochs 200
+```
+
+This keeps the gradient penalty rho=8/255. A seeded, stratified 10% holdout
+from the official binary training split leaves 10,800 training and 1,200
+validation examples; the 2,000 test examples remain separate. The length
+scale is re-estimated using only the remaining training examples. Model
+selection uses clean validation accuracy of the weighted-average model.
+Ties retain the earliest best checkpoint. Ten non-improving evaluations
+stop training, with a cap of 200 epochs. The best saved checkpoint is
+restored before AutoAttack at 8/255. Test accuracy is logged for reporting
+but never enters the stopping rule. Split indices are saved in the run.
+
+The lambda>0 strong-convexity guarantee does not apply to lambda=0. This
+is a finite-budget, early-stopped experiment. Since it also introduces a
+validation holdout, comparison with the original full-training-set run
+is not an isolated ablation of lambda alone.

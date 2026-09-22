@@ -8,6 +8,7 @@ import experiments.fashion_data as data_loader
 import experiments.train_fashion as training
 import experiments.attack_model as attacks
 import experiments.report as report
+import experiments.validation_split as splitting
 
 
 def main():
@@ -18,6 +19,7 @@ def main():
     torch.manual_seed(config["seed"])
     torch.backends.cuda.matmul.allow_tf32 = False
     data = data_loader.load(config["data_root"], config["device"])
+    data, validation = splitting.split(data, config)
     x = data[0]
     config.update(epsilon=8 / 255, rho=8 / 255, classes=[0, 1],
                   train_samples=len(x), test_samples=len(data[2]), kernel="matern52")
@@ -34,7 +36,7 @@ def main():
     report.write(output, "started", config=config)
     options = {key: config[key] for key in (
       "kernel", "length_scale", "query_tile", "center_tile")}
-    model = training.run(data, config, options)
+    model = training.run(data, config, options, validation)
     attacks.run(model, data[2], data[3], config)
   except Exception:
     report.write(output, "failed", traceback=traceback.format_exc())

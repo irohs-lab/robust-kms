@@ -2,7 +2,9 @@
 
 The solver minimizes the **summed** objective
 `sum_i logistic(f(x_i), y_i) + rho * sum_ik |partial_k f(x_i)| + lam/2 * ||f||_H^2`.
-Labels are 0 or 1, `rho = L * epsilon >= 0`, and `lam > 0`.
+Labels are 0 or 1, `rho = L * epsilon >= 0`, and `lam >= 0`.
+The averaged-iterate convergence guarantee discussed here assumes `lam > 0`;
+`lam=0` is also supported for finite-budget or early-stopped experiments.
 It implements simultaneous stochastic descent/ascent, not Chambolle–Pock,
 Condat–Vu, or the earlier variance-reduced predictor/corrector proposal.
 
@@ -74,7 +76,7 @@ random reshuffling over epochs. The low-level `rk.initialize` and `rk.step`
 functions expose state and user-supplied batches for custom loops. Start with
 feasible dual blocks and sample batches independently of the current state.
 
-`step_size <= 1/lam` and `0.5 < decay <= 1` enforce the discussed diminishing
+`step_size * lam <= 1` and `0.5 < decay <= 1` enforce the discussed diminishing
 step conditions. These are asymptotic conditions, not a finite-budget accuracy
 guarantee. Averaging accumulates the **pre-update** functions f^0,...,f^(T-1)
 with weights eta_0,...,eta_(T-1); after a single step its result is still zero.
