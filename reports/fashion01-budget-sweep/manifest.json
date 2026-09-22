@@ -1,0 +1,18 @@
+{
+  "checkpoint": "/users/faculty/pandit/code/robust-kernels/runs/fashion01-matern52-eps8-255/model.pt",
+  "sha256": "bb167b42e547aef944f6dd6ba422ed932a7c66e3b2ff519f77108375a73ffb3a",
+  "training_epsilon": 0.03137254901960784,
+  "rho": 0.03137254901960784,
+  "budgets": [
+    1,
+    2,
+    4,
+    12,
+    16
+  ],
+  "seed": 42,
+  "device": "cuda:0",
+  "test_samples": 2000,
+  "code_commit": "0e8b2a98c354efbecbc1f20ed7f2ea2e8577015f",
+  "autoattack_commit": "a39220048b3c9f2cca9a4d3a54604793c68eca7e"
+}

@@ -1,0 +1,15 @@
+{
+  "event": "selected",
+  "utc": "2026-09-22T19:03:07.447450+00:00",
+  "criterion": "validation_accuracy",
+  "epoch": 26,
+  "step": 2210,
+  "train_accuracy": 0.9641666666666666,
+  "test_accuracy": 0.951,
+  "train_logistic_loss": 0.23207331904658565,
+  "test_logistic_loss": 0.23807440185546874,
+  "objective": 5267.791845703125,
+  "elapsed_seconds": 9.00619581155479,
+  "validation_accuracy": 0.9566666666666667,
+  "validation_logistic_loss": 0.2401897430419922
+}

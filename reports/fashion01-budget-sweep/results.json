@@ -1,0 +1,102 @@
+[
+  {
+    "budget_pixels": 0,
+    "robust_test_accuracy": 0.9555
+  },
+  {
+    "budget_pixels": 1,
+    "event": "complete",
+    "utc": "2026-09-22T18:50:38.210549+00:00",
+    "clean_test_accuracy": 0.9555,
+    "robust_test_accuracy": 0.952,
+    "max_linf": 0.00392156932502985,
+    "samples": 2000,
+    "epsilon": 0.00392156862745098,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 2,
+    "event": "complete",
+    "utc": "2026-09-22T18:53:41.559121+00:00",
+    "clean_test_accuracy": 0.9555,
+    "robust_test_accuracy": 0.9495,
+    "max_linf": 0.0078431386500597,
+    "samples": 2000,
+    "epsilon": 0.00784313725490196,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 4,
+    "event": "complete",
+    "utc": "2026-09-22T18:56:45.012752+00:00",
+    "clean_test_accuracy": 0.9555,
+    "robust_test_accuracy": 0.944,
+    "max_linf": 0.0156862773001194,
+    "samples": 2000,
+    "epsilon": 0.01568627450980392,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 8,
+    "event": "complete",
+    "utc": "2026-09-22T18:41:07.641359+00:00",
+    "clean_test_accuracy": 0.9555,
+    "robust_test_accuracy": 0.937,
+    "max_linf": 0.0313725546002388,
+    "samples": 2000,
+    "epsilon": 0.03137254901960784,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 12,
+    "event": "complete",
+    "utc": "2026-09-22T18:59:48.893055+00:00",
+    "clean_test_accuracy": 0.9555,
+    "robust_test_accuracy": 0.923,
+    "max_linf": 0.0470588281750679,
+    "samples": 2000,
+    "epsilon": 0.047058823529411764,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 16,
+    "event": "complete",
+    "utc": "2026-09-22T19:02:52.157808+00:00",
+    "clean_test_accuracy": 0.9555,
+    "robust_test_accuracy": 0.902,
+    "max_linf": 0.0627451092004776,
+    "samples": 2000,
+    "epsilon": 0.06274509803921569,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  }
+]
