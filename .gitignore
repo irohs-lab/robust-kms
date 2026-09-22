@@ -1,2 +1,5 @@
 ./LICENSE
 ./README.md
+__pycache__/
+*.py[cod]
+*.egg-info/

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robust-kernels"
+version = "0.1.0"
+description = "Matrix-free stochastic primal-dual learning in scalar RKHSs"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.2", "torchkernels"]
+
+[tool.setuptools]
+packages = ["robust_kernels"]

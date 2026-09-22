@@ -711,3 +711,11 @@ eps_values = [0.075]
 Also, in the code `base_out` is the directory to which the output will be saved. The consolidated results can be seen in `base_out/evaluations.json`.
 This CaFA attack is taken from [CaFA](https://github.com/matanbt/attack-tabular), we have optimized it to evaluate our attack only on the compliant samples.
 
+
+
+## Stochastic primal-dual RKHS formulation
+
+The scalar logistic solver with an input-gradient l1 penalty and squared RKHS
+regularization is documented in [docs/primal_dual.md](docs/primal_dual.md).
+It supports exact Gaussian and Matern-5/2 kernels with tiled matrix-free
+value and input-gradient evaluation.
