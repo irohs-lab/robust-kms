@@ -75,3 +75,18 @@ Artifacts in the run directory:
 Final robust accuracy uses all test examples as the denominator, including
 those already misclassified without perturbation. The runner verifies the
 pixel bounds and maximum Linf perturbation of the returned examples.
+
+## Additional attack budgets on the same checkpoint
+
+```bash
+PYTHONPATH=.deps/auto-attack:. python -m experiments.attack_budgets \
+  --checkpoint runs/fashion01-matern52-eps8-255/model.pt \
+  --output runs/fashion01-budget-sweep --budgets 1 2 4 12 16 --device cuda:0
+```
+
+This does not retrain the model or change rho. It independently attacks all
+2,000 test images at each requested epsilon/255 with the same binary custom
+AutoAttack configuration. Each budget has its own log, configuration, and
+adversarial examples. The manifest records the checkpoint SHA-256 and training
+epsilon separately from the attack epsilon. Results accumulate in results.json.
+The output directory must be new.
