@@ -1,0 +1,63 @@
+{
+  "eigenpro2": {
+    "selection": {
+      "bias": 0.0,
+      "epoch": 5,
+      "train_accuracy": 1.0,
+      "validation_accuracy": 0.9950000047683716,
+      "test_accuracy": 0.9925000667572021,
+      "stopped_epoch": 15,
+      "preconditioner": {
+        "samples": 1024,
+        "rank": 100,
+        "batch_size": 128
+      }
+    },
+    "result": {
+      "event": "complete",
+      "utc": "2026-09-23T10:09:47.936804+00:00",
+      "clean_test_accuracy": 0.9925,
+      "robust_test_accuracy": 0.9635,
+      "max_linf": 0.0313725546002388,
+      "samples": 2000,
+      "epsilon": 0.03137254901960784,
+      "attack_version": "custom-binary",
+      "attacks": [
+        "apgd-ce",
+        "fab",
+        "square"
+      ]
+    },
+    "checkpoint": "/users/faculty/pandit/code/robust-kernels/runs/fashion01-baseline-eigenpro2/model.pt",
+    "sha256": "dd27c889889e3f7df9890da294aa7111ff33d59d5c1dea61b5a187d127b84f61"
+  },
+  "svm": {
+    "selection": {
+      "bias": -0.019858326366189904,
+      "lam": 0.1,
+      "C": 10.0,
+      "support_vectors": 528,
+      "export_max_error": 2.5644012483283518e-05,
+      "train_accuracy": 0.9999074339866638,
+      "validation_accuracy": 0.9933333396911621,
+      "test_accuracy": 0.9925000667572021
+    },
+    "result": {
+      "event": "complete",
+      "utc": "2026-09-23T10:11:46.867724+00:00",
+      "clean_test_accuracy": 0.9925,
+      "robust_test_accuracy": 0.9475,
+      "max_linf": 0.0313725546002388,
+      "samples": 2000,
+      "epsilon": 0.03137254901960784,
+      "attack_version": "custom-binary",
+      "attacks": [
+        "apgd-ce",
+        "fab",
+        "square"
+      ]
+    },
+    "checkpoint": "/users/faculty/pandit/code/robust-kernels/runs/fashion01-baseline-svm/model.pt",
+    "sha256": "52e59c7653f85d3e6d045d7eb81f88070d52e230aaba968dac331d4e61b16ca6"
+  }
+}

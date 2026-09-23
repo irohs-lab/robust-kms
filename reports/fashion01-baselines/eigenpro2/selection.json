@@ -1,0 +1,13 @@
+{
+  "bias": 0.0,
+  "epoch": 5,
+  "train_accuracy": 1.0,
+  "validation_accuracy": 0.9950000047683716,
+  "test_accuracy": 0.9925000667572021,
+  "stopped_epoch": 15,
+  "preconditioner": {
+    "samples": 1024,
+    "rank": 100,
+    "batch_size": 128
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "bias": -0.019858326366189904,
+  "lam": 0.1,
+  "C": 10.0,
+  "support_vectors": 528,
+  "export_max_error": 2.5644012483283518e-05,
+  "train_accuracy": 0.9999074339866638,
+  "validation_accuracy": 0.9933333396911621,
+  "test_accuracy": 0.9925000667572021
+}
