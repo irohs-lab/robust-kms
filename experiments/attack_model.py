@@ -9,7 +9,8 @@ import experiments.report as report
 def run(model, test_x, test_y, config):
   output = pathlib.Path(config["output"])
   predict = functools.partial(logits.binary_logits, centers=model["centers"],
-    alpha=model["alpha"], beta=model["beta"], **model["options"])
+    alpha=model["alpha"], beta=model["beta"],
+    bias=model.get("bias", 0.), **model["options"])
   images = test_x.reshape(-1, 1, 28, 28)
   adversary = autoattack.AutoAttack(
     predict, norm="Linf", eps=config["epsilon"], version="custom",

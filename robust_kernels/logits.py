@@ -2,7 +2,7 @@ import torch
 import robust_kernels.evaluate as evaluation
 
 
-def binary_logits(inputs, centers, alpha, beta, **options):
+def binary_logits(inputs, centers, alpha, beta, bias=0., **options):
   """Return [0, f(x)] logits with exact first input derivatives.
 
   The analytic Jacobian avoids retaining kernel tiles for backward.
@@ -13,4 +13,5 @@ def binary_logits(inputs, centers, alpha, beta, **options):
     flat.detach(), centers, alpha, beta, **options)
   if torch.is_grad_enabled() and flat.requires_grad:
     values = values + (gradients * (flat - flat.detach())).sum(dim=1)
+  values = values + bias
   return torch.stack((torch.zeros_like(values), values), dim=1)
