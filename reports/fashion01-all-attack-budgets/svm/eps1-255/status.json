@@ -1,0 +1,1 @@
+{"event": "complete", "utc": "2026-09-23T13:22:35.605175+00:00", "clean_test_accuracy": 0.9925, "robust_test_accuracy": 0.99, "max_linf": 0.00392156932502985, "samples": 2000, "epsilon": 0.00392156862745098, "attack_version": "custom-binary", "attacks": ["apgd-ce", "fab", "square"]}

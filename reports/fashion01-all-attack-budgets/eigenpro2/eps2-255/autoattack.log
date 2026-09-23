@@ -1,0 +1,55 @@
+using custom version including apgd-ce, fab, square.
+initial accuracy: 99.25%
+apgd-ce - 1/16 - 1 out of 128 successfully perturbed
+apgd-ce - 2/16 - 0 out of 128 successfully perturbed
+apgd-ce - 3/16 - 0 out of 128 successfully perturbed
+apgd-ce - 4/16 - 0 out of 128 successfully perturbed
+apgd-ce - 5/16 - 1 out of 128 successfully perturbed
+apgd-ce - 6/16 - 0 out of 128 successfully perturbed
+apgd-ce - 7/16 - 1 out of 128 successfully perturbed
+apgd-ce - 8/16 - 0 out of 128 successfully perturbed
+apgd-ce - 9/16 - 0 out of 128 successfully perturbed
+apgd-ce - 10/16 - 1 out of 128 successfully perturbed
+apgd-ce - 11/16 - 0 out of 128 successfully perturbed
+apgd-ce - 12/16 - 0 out of 128 successfully perturbed
+apgd-ce - 13/16 - 0 out of 128 successfully perturbed
+apgd-ce - 14/16 - 0 out of 128 successfully perturbed
+apgd-ce - 15/16 - 1 out of 128 successfully perturbed
+apgd-ce - 16/16 - 0 out of 65 successfully perturbed
+robust accuracy after APGD-CE: 99.00% (total time 14.3 s)
+fab - 1/16 - 0 out of 128 successfully perturbed
+fab - 2/16 - 0 out of 128 successfully perturbed
+fab - 3/16 - 0 out of 128 successfully perturbed
+fab - 4/16 - 0 out of 128 successfully perturbed
+fab - 5/16 - 0 out of 128 successfully perturbed
+fab - 6/16 - 0 out of 128 successfully perturbed
+fab - 7/16 - 0 out of 128 successfully perturbed
+fab - 8/16 - 0 out of 128 successfully perturbed
+fab - 9/16 - 0 out of 128 successfully perturbed
+fab - 10/16 - 0 out of 128 successfully perturbed
+fab - 11/16 - 0 out of 128 successfully perturbed
+fab - 12/16 - 0 out of 128 successfully perturbed
+fab - 13/16 - 0 out of 128 successfully perturbed
+fab - 14/16 - 0 out of 128 successfully perturbed
+fab - 15/16 - 0 out of 128 successfully perturbed
+fab - 16/16 - 0 out of 60 successfully perturbed
+robust accuracy after FAB: 99.00% (total time 58.6 s)
+square - 1/16 - 0 out of 128 successfully perturbed
+square - 2/16 - 0 out of 128 successfully perturbed
+square - 3/16 - 0 out of 128 successfully perturbed
+square - 4/16 - 0 out of 128 successfully perturbed
+square - 5/16 - 0 out of 128 successfully perturbed
+square - 6/16 - 0 out of 128 successfully perturbed
+square - 7/16 - 0 out of 128 successfully perturbed
+square - 8/16 - 0 out of 128 successfully perturbed
+square - 9/16 - 0 out of 128 successfully perturbed
+square - 10/16 - 0 out of 128 successfully perturbed
+square - 11/16 - 0 out of 128 successfully perturbed
+square - 12/16 - 0 out of 128 successfully perturbed
+square - 13/16 - 0 out of 128 successfully perturbed
+square - 14/16 - 0 out of 128 successfully perturbed
+square - 15/16 - 0 out of 128 successfully perturbed
+square - 16/16 - 0 out of 60 successfully perturbed
+robust accuracy after SQUARE: 99.00% (total time 192.4 s)
+max Linf perturbation: 0.00784, nan in tensor: 0, max: 1.00000, min: 0.00000
+robust accuracy: 99.00%

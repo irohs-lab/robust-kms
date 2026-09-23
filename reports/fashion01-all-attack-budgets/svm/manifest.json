@@ -1,0 +1,18 @@
+{
+  "checkpoint": "/users/faculty/pandit/code/robust-kernels/runs/fashion01-baseline-svm/model.pt",
+  "sha256": "52e59c7653f85d3e6d045d7eb81f88070d52e230aaba968dac331d4e61b16ca6",
+  "training_epsilon": 0.03137254901960784,
+  "rho": 0.0,
+  "budgets": [
+    1,
+    2,
+    4,
+    12,
+    16
+  ],
+  "seed": 42,
+  "device": "cuda:0",
+  "test_samples": 2000,
+  "code_commit": "26694ae26ed418974305c3dd48b277ab7e7aee2f",
+  "autoattack_commit": "a39220048b3c9f2cca9a4d3a54604793c68eca7e"
+}

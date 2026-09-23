@@ -1,0 +1,45 @@
+using custom version including apgd-ce, fab, square.
+initial accuracy: 99.25%
+apgd-ce - 1/16 - 35 out of 128 successfully perturbed
+apgd-ce - 2/16 - 46 out of 128 successfully perturbed
+apgd-ce - 3/16 - 41 out of 128 successfully perturbed
+apgd-ce - 4/16 - 43 out of 128 successfully perturbed
+apgd-ce - 5/16 - 37 out of 128 successfully perturbed
+apgd-ce - 6/16 - 38 out of 128 successfully perturbed
+apgd-ce - 7/16 - 35 out of 128 successfully perturbed
+apgd-ce - 8/16 - 36 out of 128 successfully perturbed
+apgd-ce - 9/16 - 41 out of 128 successfully perturbed
+apgd-ce - 10/16 - 31 out of 128 successfully perturbed
+apgd-ce - 11/16 - 37 out of 128 successfully perturbed
+apgd-ce - 12/16 - 46 out of 128 successfully perturbed
+apgd-ce - 13/16 - 49 out of 128 successfully perturbed
+apgd-ce - 14/16 - 43 out of 128 successfully perturbed
+apgd-ce - 15/16 - 36 out of 128 successfully perturbed
+apgd-ce - 16/16 - 22 out of 65 successfully perturbed
+robust accuracy after APGD-CE: 68.45% (total time 10.3 s)
+fab - 1/11 - 0 out of 128 successfully perturbed
+fab - 2/11 - 0 out of 128 successfully perturbed
+fab - 3/11 - 0 out of 128 successfully perturbed
+fab - 4/11 - 0 out of 128 successfully perturbed
+fab - 5/11 - 0 out of 128 successfully perturbed
+fab - 6/11 - 0 out of 128 successfully perturbed
+fab - 7/11 - 0 out of 128 successfully perturbed
+fab - 8/11 - 0 out of 128 successfully perturbed
+fab - 9/11 - 0 out of 128 successfully perturbed
+fab - 10/11 - 0 out of 128 successfully perturbed
+fab - 11/11 - 0 out of 89 successfully perturbed
+robust accuracy after FAB: 68.45% (total time 33.8 s)
+square - 1/11 - 0 out of 128 successfully perturbed
+square - 2/11 - 0 out of 128 successfully perturbed
+square - 3/11 - 0 out of 128 successfully perturbed
+square - 4/11 - 0 out of 128 successfully perturbed
+square - 5/11 - 0 out of 128 successfully perturbed
+square - 6/11 - 0 out of 128 successfully perturbed
+square - 7/11 - 0 out of 128 successfully perturbed
+square - 8/11 - 0 out of 128 successfully perturbed
+square - 9/11 - 0 out of 128 successfully perturbed
+square - 10/11 - 0 out of 128 successfully perturbed
+square - 11/11 - 0 out of 89 successfully perturbed
+robust accuracy after SQUARE: 68.45% (total time 90.5 s)
+max Linf perturbation: 0.06275, nan in tensor: 0, max: 1.00000, min: 0.00000
+robust accuracy: 68.45%

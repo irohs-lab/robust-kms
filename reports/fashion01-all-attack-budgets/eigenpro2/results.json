@@ -1,0 +1,82 @@
+[
+  {
+    "budget_pixels": 1,
+    "event": "complete",
+    "utc": "2026-09-23T13:08:53.056559+00:00",
+    "clean_test_accuracy": 0.9925,
+    "robust_test_accuracy": 0.992,
+    "max_linf": 0.00392156932502985,
+    "samples": 2000,
+    "epsilon": 0.00392156862745098,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 2,
+    "event": "complete",
+    "utc": "2026-09-23T13:12:05.481509+00:00",
+    "clean_test_accuracy": 0.9925,
+    "robust_test_accuracy": 0.99,
+    "max_linf": 0.0078431386500597,
+    "samples": 2000,
+    "epsilon": 0.00784313725490196,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 4,
+    "event": "complete",
+    "utc": "2026-09-23T13:15:17.460084+00:00",
+    "clean_test_accuracy": 0.9925,
+    "robust_test_accuracy": 0.9855,
+    "max_linf": 0.0156862773001194,
+    "samples": 2000,
+    "epsilon": 0.01568627450980392,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 12,
+    "event": "complete",
+    "utc": "2026-09-23T13:18:07.289112+00:00",
+    "clean_test_accuracy": 0.9925,
+    "robust_test_accuracy": 0.883,
+    "max_linf": 0.0470588281750679,
+    "samples": 2000,
+    "epsilon": 0.047058823529411764,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  },
+  {
+    "budget_pixels": 16,
+    "event": "complete",
+    "utc": "2026-09-23T13:20:24.091562+00:00",
+    "clean_test_accuracy": 0.9925,
+    "robust_test_accuracy": 0.654,
+    "max_linf": 0.0627451092004776,
+    "samples": 2000,
+    "epsilon": 0.06274509803921569,
+    "attack_version": "custom-binary",
+    "attacks": [
+      "apgd-ce",
+      "fab",
+      "square"
+    ]
+  }
+]

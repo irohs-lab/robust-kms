@@ -1,0 +1,32 @@
+{
+  "data_root": "/janaki/common/Datasets/rahulky",
+  "output": "runs/fashion01-budget-sweep-lambda0/eps1-255",
+  "device": "cuda:0",
+  "epochs": 200,
+  "batch_size": 128,
+  "eval_every": 1,
+  "lam": 0.0,
+  "step_size": 0.00037037037037037035,
+  "decay": 0.6,
+  "length_scale": 9.05993938446045,
+  "seed": 42,
+  "attack_batch_size": 128,
+  "center_tile": 4096,
+  "query_tile": 128,
+  "validation_fraction": 0.1,
+  "patience": 10,
+  "validation_samples": 1200,
+  "epsilon": 0.00392156862745098,
+  "rho": 0.03137254901960784,
+  "classes": [
+    0,
+    1
+  ],
+  "train_samples": 10800,
+  "test_samples": 2000,
+  "kernel": "matern52",
+  "code_commit": "3c37f463ad61f4501d27a522fcfe611c708b1a53",
+  "autoattack_commit": "a39220048b3c9f2cca9a4d3a54604793c68eca7e",
+  "training_epsilon": 0.03137254901960784,
+  "checkpoint_sha256": "5e06878320392e558b4fa7baf54bbe3f7a5fb6c52dd6e29c657e6b4e6165f941"
+}
