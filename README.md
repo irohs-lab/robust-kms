@@ -719,3 +719,9 @@ The scalar logistic solver with an input-gradient l1 penalty and squared RKHS
 regularization is documented in [docs/primal_dual.md](docs/primal_dual.md).
 It supports exact Gaussian and Matern-5/2 kernels with tiled matrix-free
 value and input-gradient evaluation.
+
+## Multiclass models with delayed rank-one projection
+
+The multiclass cross-entropy solver, incremental QR factors, and separate
+RKHS projection step are documented in [docs/multiclass_projection.md](docs/multiclass_projection.md).
+Run the small example with `python -m examples.train_multiclass`.
