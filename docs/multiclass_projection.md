@@ -181,6 +181,36 @@ Base float32 coefficient storage is n*(d+2*c)*4 bytes, excluding training data,
 pending factors, inner-optimization copies/gradients, and tiled workspace.
 Full CIFAR-10 projection throughput has not been benchmarked.
 
+
+For the 54,000-center FashionMNIST split, float32 scalar K occupies 10.86 GiB
+when dense, or 5.43 GiB with one packed triangle. Three packed scalar radial
+matrices would occupy 16.30 GiB before coefficients and workspace. This does
+not make the full derivative matrices practical: dense G would require about
+9.14 TB and dense H about 7.17 PB (decimal units). Keeping derivative
+contractions factored and tiled remains necessary.
+
+KLR `new_api` provides `kernel_operator(..., storage="packed")`, including
+selected-row and matrix-right-hand-side products. At commit `04d56d69`, its
+public constructor first builds a dense temporary, and its packed matrix
+products use Python loops over tiles and diagonal rows. The memory saving
+therefore does not imply a speed improvement for ten-class EigenPro solves.
+The FashionMNIST runner retains its dense scalar cache, which fits on each
+available GPU. Packed storage is not currently an `eigenpro_storage` option
+in this repository. Reproduce the arithmetic and memory comparison with:
+
+```bash
+PYTHONPATH=/path/to/klr python -m experiments.multiclass_storage_benchmark \
+  --size 54000 --outputs 10 --batch-size 128 --device cuda:2 \
+  --output runs/packed-storage-benchmark.json
+```
+
+The benchmark uses a synthetic symmetric matrix to compare storage and
+products; it does not measure FashionMNIST training or radial-kernel
+construction speed. It reports construction peaks separately from retained
+matrix storage and checks dense and packed products against an analytic
+reference. Do not run the full-size construction on a GPU that lacks space
+for its temporary dense matrix plus packed destination.
+
 Run the executable smoke example and tests with:
 
 ```bash
