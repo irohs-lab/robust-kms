@@ -70,6 +70,12 @@ def test_eigenpro_dense_solve_uses_cache_for_true_residuals_and_warm_starts():
     torch.testing.assert_close(repeated, actual, atol=0, rtol=0)
     norms = (dense["gram"] @ actual - rhs).norm(dim=0)
     assert torch.all(norms <= 1e-12 + 1e-10 * rhs.norm(dim=0))
+    relative = torch.where(rhs.norm(dim=0) == 0, 0., norms / rhs.norm(dim=0))
+    scaled = norms / (1e-12 + 1e-10 * rhs.norm(dim=0))
+    assert info["max_relative_residual"] == relative.max().item()
+    assert info["max_scaled_residual"] == scaled.max().item() <= 1
+    assert info["sample_beta"] == dense["sample_beta"].item()
+    assert info["beta"] == dense["beta"].item() >= info["sample_beta"]
     assert info["storage"] == "dense" and repeated_info["epochs"] == 0
     assert dense["gram"].data_ptr() == cache_pointer
 
@@ -91,3 +97,31 @@ def test_eigenpro_dense_matrix_is_built_with_bounded_kernel_tiles():
     assert "storage" in str(error)
   else:
     raise AssertionError("unsupported storage must be rejected")
+
+
+def test_eigenpro_beta_bounds_centers_outside_the_spectral_sample():
+  # Seed 0 selects centers 2 and 5; the other centers lie outside that cluster.
+  x = torch.tensor([[3.], [6.], [0.], [9.], [12.], [1.]], dtype=torch.float64)
+  options = dict(kernel="gaussian", length_scale=1., query_tile=2, center_tile=3)
+  workspace = setup.prepare(x, options, samples=2, rank=1, batch_size=1,
+                             seed=0, storage="dense")
+  assert workspace["indices"].tolist() == [2, 5]
+  diagonal = workspace["gram"].diag() - workspace["extended"].square().sum(1)
+  assert diagonal.max() > 2 * workspace["sample_beta"]
+  assert workspace["beta"] >= diagonal.max()
+  assert workspace["critical"] == int(
+    workspace["beta"] * workspace["samples"] / workspace["next_value"]) + 1
+  rhs = torch.tensor([[1., 0.], [0., 1.], [.4, -.2], [1., 1.], [-1., 2.], [.3, .1]],
+                      dtype=x.dtype)
+  solution, info = solver.solve(workspace, rhs, rtol=1e-8, atol=1e-10, max_epochs=100)
+  assert torch.isfinite(solution).all() and info["epochs"] > 0
+  torch.testing.assert_close(workspace["gram"] @ solution, rhs, atol=2e-8, rtol=2e-8)
+
+
+def test_eigenpro_zero_rhs_reports_zero_relative_and_scaled_residuals():
+  x = torch.tensor([[0.], [1.], [2.]], dtype=torch.float64)
+  options = dict(kernel="gaussian", length_scale=1., query_tile=2, center_tile=2)
+  workspace = setup.prepare(x, options, samples=3, rank=1, storage="dense")
+  _, info = solver.solve(workspace, torch.zeros(3, 2, dtype=x.dtype), rtol=0., atol=0.)
+  assert info["epochs"] == 0 and info["max_residual"] == 0
+  assert info["max_relative_residual"] == info["max_scaled_residual"] == 0

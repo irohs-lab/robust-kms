@@ -138,12 +138,16 @@ def train(args):
       def callback(current, event):
         if event.get("epoch_end") or current["iterations"] % 100 == 0:
           reporting.write(output, "batch", **event)
+      def projection_progress(event):
+        details = dict(event)
+        reporting.write(output, details.pop("phase"), epoch=epoch, **details)
       try:
         state = rk.fit_multiclass(x, y, outputs=10, rho=config["rho"], lam=config["lam"],
           eta=config["robust_eta"], decay=config["robust_decay"], epochs=1,
           batch_size=config["batch_size"], project_every=config["project_every"],
           final_projection=False, seed=config["seed"], state=state, callback=callback,
           projection_options=dict(max_steps=config["projection_steps"],
+            progress=projection_progress,
             eigenpro_storage=config.get("eigenpro_storage", "matfree"),
             eigenpro_samples=config.get("eigenpro_samples", 1024),
             eigenpro_rank=config.get("eigenpro_rank", 100),
@@ -210,7 +214,7 @@ def train(args):
       step_size=config["attack_step_size"], batch_size=config["attack_batch_size"],
       seed=config["seed"])
   result = dict(model=args.model, selected_epoch=selected["epoch"],
-    epochs_run=epoch, validation=selected["validation"], test=test, attack=attack,
+    epochs_run=epoch, epoch_limit=max_epochs, validation=selected["validation"], test=test, attack=attack,
     training_seconds=training_seconds, config=config)
   _json(output / "result.json", result)
   reporting.write(output, "complete", **result)
@@ -239,7 +243,7 @@ def main():
   parser.add_argument("--eigenpro-storage", choices=("matfree", "dense"), default="dense")
   parser.add_argument("--eigenpro-samples", type=int, default=1024)
   parser.add_argument("--eigenpro-rank", type=int, default=100)
-  parser.add_argument("--solve-rtol", type=float, default=1e-4)
+  parser.add_argument("--solve-rtol", type=float, default=1e-3)
   parser.add_argument("--solve-atol", type=float, default=1e-6)
   parser.add_argument("--solve-max-epochs", type=int, default=100)
   parser.add_argument("--attack-per-class", type=int, default=100)

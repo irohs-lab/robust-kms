@@ -16,8 +16,9 @@ def solve(workspace, rhs, *, rtol=1e-6, atol=1e-8, max_epochs=100):
   gram = workspace.get("gram")
   apply = (lambda w: gram @ w) if gram is not None else (
     lambda w: kernel_operator.apply(workspace["centers"], w, **workspace["options"]))
-  threshold = atol + rtol * rhs.norm(dim=0)
-  solution, residual = torch.zeros_like(rhs), rhs.norm(dim=0)
+  rhs_norm = rhs.norm(dim=0)
+  threshold = atol + rtol * rhs_norm
+  solution, residual = torch.zeros_like(rhs), rhs_norm
   warm = workspace["warm_start"]
   if warm is not None and warm.shape == rhs.shape:
     warm_residual = (apply(warm) - rhs).norm(dim=0)
@@ -29,19 +30,29 @@ def solve(workspace, rhs, *, rtol=1e-6, atol=1e-8, max_epochs=100):
     if (residual <= threshold).all():
       workspace["warm_start"] = solution.clone()
       return solution, dict(method="eigenpro2", epochs=epoch,
-        max_residual=residual.max().item(), samples=workspace["samples"],
+        max_residual=residual.max().item(),
+        max_relative_residual=_maximum_ratio(residual, rhs_norm),
+        max_scaled_residual=_maximum_ratio(residual, threshold),
+        sample_beta=workspace.get("sample_beta", workspace["beta"]).item(),
+        beta=workspace["beta"].item(), samples=workspace["samples"],
         rank=workspace["rank"], batch_size=workspace["batch_size"],
         storage=workspace.get("storage", "matfree"))
     if epoch < max_epochs:
       iteration.epoch(workspace, solution, rhs)
       workspace["total_epochs"] += 1
       residual = (apply(solution) - rhs).norm(dim=0)
-  ratio = torch.where(threshold == 0,
-    torch.where(residual == 0, 0., torch.inf), residual / threshold)
+  ratio = _maximum_ratio(residual, threshold)
   raise RuntimeError("EigenPro2 failed its residual tolerance: "
     f"max_residual={residual.max().item():.6g}, "
     f"max_threshold={threshold.max().item():.6g}, "
-    f"max_component_ratio={ratio.max().item():.6g}, "
+    f"max_component_ratio={ratio:.6g}, "
     f"max_epochs={max_epochs}, storage={workspace.get('storage', 'matfree')}, "
     f"dtype={rhs.dtype}; increase solve_max_epochs, adjust the preconditioner, "
     "or use float64")
+
+
+def _maximum_ratio(numerator, denominator):
+  """Componentwise relative error, with exact zero components contributing zero."""
+  ratios = torch.where(denominator == 0,
+    torch.where(numerator == 0, 0., torch.inf), numerator / denominator)
+  return ratios.max().item()

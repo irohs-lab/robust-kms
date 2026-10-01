@@ -35,9 +35,15 @@ def prepare(centers, options, *, samples=1024, rank=100, batch_size=128, seed=0,
       centers, centers[indices], vectors, gradients=False, **options)
   else:
     extended = centers.new_zeros((len(centers), 0))
+  # The sampled diagonal need not bound centers outside the spectral sample.
+  # Both supported radial kernels have K(x, x)=1, and the modified kernel
+  # is K - extended @ extended.T. Its diagonal must be bounded on all centers.
+  sample_beta = beta
+  beta = torch.maximum(beta, (1 - extended.square().sum(dim=1)).max())
   gram = _gram_matrix(centers, options) if storage == "dense" else None
   return dict(centers=centers, options=options, indices=indices, vectors=vectors,
-    extended=extended, beta=beta, next_value=next_value, samples=samples,
+    extended=extended, beta=beta, sample_beta=sample_beta,
+    next_value=next_value, samples=samples,
     rank=rank, batch_size=batch_size, critical=int(beta * samples / next_value) + 1,
     generator=generator, warm_start=None, solve_calls=0, total_epochs=0,
     storage=storage, gram=gram)

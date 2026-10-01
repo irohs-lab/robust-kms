@@ -9,9 +9,13 @@ import robust_kernels.eigenpro_solve as eigenpro
 def measure(centers, target, candidate, target_values, options, solver, workspace, gradient=True):
   """RKHS distance after eliminating alpha; stream derivative residuals."""
   zeros = torch.zeros_like(target_values)
-  values, _ = evaluation.kernel_eval_and_grad(
-    centers, centers, zeros, candidate, gradients=False, **options)
-  correction, diagnostics = eigenpro.solve(workspace, target_values - values, **solver)
+  # Form G(target-candidate) directly, avoiding cancellation between two
+  # large value evaluations before the scalar kernel solve.
+  rhs, _ = evaluation.kernel_eval_and_grad(
+    centers, centers, zeros, target, gradients=False,
+    factor_cache=workspace.get("target_factor_cache"),
+    subtract_factors=candidate, **options)
+  correction, diagnostics = eigenpro.solve(workspace, rhs, **solver)
   du = torch.zeros_like(candidate["u"]) if gradient else None
   dv = torch.zeros_like(candidate["v"]) if gradient else None
   error, max_value_error = centers.new_zeros(()), 0.

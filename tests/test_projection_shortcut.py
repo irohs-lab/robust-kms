@@ -2,6 +2,7 @@ from unittest.mock import patch
 import torch
 import robust_kernels.lowrank_factors as factors_ops
 import robust_kernels.rkhs_projection as projection
+import robust_kernels.multioutput_evaluate as evaluation
 
 
 def coefficients(factors):
@@ -70,7 +71,7 @@ def test_feasible_projection_shortcut_preserves_function_without_kernel_solve():
       state = dict(alpha=alpha, factors=factors, iterations=17, epochs=3,
                    last_projection=0, last_projection_epoch=0)
       with patch.object(projection.eigenpro, "prepare", side_effect=AssertionError("unnecessary solve")):
-        with patch.object(projection.evaluation, "kernel_eval_and_grad",
+        with patch.object(evaluation, "kernel_eval_and_grad",
                           side_effect=AssertionError("unnecessary kernel evaluation")):
           info = projection.project(centers, state)
       torch.testing.assert_close(coefficients(state["factors"]), expected, atol=3e-5, rtol=3e-5)

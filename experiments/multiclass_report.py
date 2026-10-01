@@ -59,7 +59,7 @@ def _stopping_reason(result, config, events):
   if any(event.get("event") == "early_stopped" and event.get("epoch") == epochs
          for event in events):
     return "patience exhausted (logged)"
-  cap = config.get("epochs", config.get("max_epochs"))
+  cap = result.get("epoch_limit", config.get("epochs", config.get("max_epochs")))
   if isinstance(epochs, (int, float)) and isinstance(cap, (int, float)) and epochs >= cap:
     return "epoch cap reached"
   patience, selected = config.get("patience"), result.get("selected_epoch")

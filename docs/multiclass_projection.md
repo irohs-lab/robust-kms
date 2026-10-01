@@ -151,8 +151,15 @@ for small datasets. Configure `eigenpro_samples`, `eigenpro_rank`,
 `eigenpro_batch_size`, `solve_max_epochs`, `solve_rtol`, and `solve_atol`.
 The full true linear residual is checked every epoch. An unsuccessful solve
 raises before the projector changes the model. Increase the solve budget or
-preconditioner quality when needed. Float64 can help stringent tolerances.
+preconditioner quality when needed. The step-size diagonal bound is checked
+on all training centers, including those outside the spectral sample.
+Float64 can help stringent tolerances or large, numerically delicate spectral
+setups. The FashionMNIST comparison uses `solve_rtol=1e-3` and records both
+relative and scaled true-residual diagnostics.
 Loosening tolerance also loosens training-logit preservation.
+Accepted line-search measurements (including factor gradients) are reused.
+An optional `progress(event)` callback reports initialization and accepted
+projection steps; callbacks are never stored in model checkpoints.
 
 The alpha correction preserves f(X) up to numerical solve/evaluation error.
 `max_value_error` reports the observed maximum change over all training logits.
