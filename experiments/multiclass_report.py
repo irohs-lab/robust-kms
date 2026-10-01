@@ -234,6 +234,10 @@ def _summary(runs, config, results, histories, rows, warnings):
   for key in keys:
     if key in config:
       settings.append((key, json.dumps(config[key], ensure_ascii=False)))
+  for name in MODELS:
+    result = results[name] or {}
+    if "epoch_limit" in result:
+      settings.append((name + "_effective_epoch_limit", result["epoch_limit"]))
   if settings:
     lines += ["## Shared run configuration", ""]
     lines += _table(("Setting", "Value"), settings) + [""]
@@ -288,7 +292,9 @@ def _summary(runs, config, results, histories, rows, warnings):
         values.append(_number(accuracies[index], percent=True) if index < len(accuracies) else "—")
     class_rows.append(values)
   if any(value != "—" for row in class_rows for value in row[1:]):
-    lines += ["## Per-class accuracy", ""]
+    lines += ["## Per-class accuracy", "",
+      "Clean accuracy uses the full test set; PGD accuracy uses the fixed test "
+      "subset. These columns have different denominators.", ""]
     lines += _table(("Class", "Robust model: clean", "Robust model: PGD",
                       "Base kernel: clean", "Base kernel: PGD"), class_rows) + [""]
   lines += ["## Learning curves", "", "![Training-subset and validation learning curves](learning_curves.png)",

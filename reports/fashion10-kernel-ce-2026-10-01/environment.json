@@ -1,0 +1,20 @@
+{
+  "python": "3.13.5",
+  "packages": {
+    "torch": "2.12.1+cu132",
+    "torchkernels": "0.1",
+    "torchvision": "0.27.1+cu132",
+    "scipy": "1.16.1",
+    "numpy": "2.4.4",
+    "matplotlib": "3.10.5"
+  },
+  "cuda": "13.2",
+  "gpus": [
+    "NVIDIA RTX 5000 Ada Generation",
+    "NVIDIA RTX 5000 Ada Generation",
+    "NVIDIA RTX PRO 4000 Blackwell"
+  ],
+  "klr_commit": "04d56d69d17284a28a4401e15de8f7a57fefbb72",
+  "training_dtype": "float32",
+  "allow_tf32": false
+}
