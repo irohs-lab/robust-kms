@@ -1,0 +1,15 @@
+{
+  "models": 7,
+  "points": 42,
+  "tests": "69 tests passed or skipped as expected: 66 passed, 3 CUDA-specific skipped in CPU-only suite",
+  "checks": [
+    "All model/budget pairs complete",
+    "Shared indices and labels match all per-example files",
+    "Per-example masks and CE reproduce aggregate results",
+    "Per-class accuracy reproduced",
+    "Clean errors remain attack errors",
+    "Saved radii stay within epsilon + 1e-6",
+    "Nonzero budgets use PGD20, one restart and epsilon/4 steps",
+    "Four repeated 8/255 evaluations reproduce earlier accuracy exactly and CE within 1e-5"
+  ]
+}
