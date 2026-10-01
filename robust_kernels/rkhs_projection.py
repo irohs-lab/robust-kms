@@ -55,6 +55,7 @@ def project(centers, state, *, max_steps=20, tolerance=1e-6, step_size=1.,
   state["alpha"] = state["alpha"] + current[3]
   state["factors"] = candidate
   state["last_projection"] = state.get("iterations", 0)
+  state["last_projection_epoch"] = state.get("epochs", 0)
   report = dict(error_squared=2 * current[0], initial_error_squared=2 * initial,
     iterations=iterations, converged=reason == "stationary", reason=reason,
     max_value_error=current[4]["max_value_error"], kernel_solve=current[4],

@@ -2,12 +2,18 @@ import torch
 import robust_kernels.lowrank_factors as factors
 import robust_kernels.multiclass_inputs as inputs
 import robust_kernels.multioutput_evaluate as evaluation
+import robust_kernels.multiclass_dual as dual
 
 
 @torch.no_grad()
 def step(centers, labels, state, batch, *, rho, lam, eta, kernel="gaussian",
          length_scale=1., query_tile=128, center_tile=1024):
-  """One summed-loss RKHS subgradient step; projection is a separate operation."""
+  """Refresh the exact dual maximizer, then take one RKHS primal step.
+
+  The rank-one dual blocks maximize their pairing with the old Jacobians;
+  they are computed on demand rather than retained for dual ascent.
+  Projection is a separate operation. The objective is a summed loss.
+  """
   inputs.validate(centers, labels, state, batch, rho, lam, eta)
   values, jacobian = evaluation.kernel_eval_and_grad(
     centers[batch], centers, state["alpha"], state["factors"],
@@ -16,19 +22,15 @@ def step(centers, labels, state, batch, *, rho, lam, eta, kernel="gaussian",
   target = labels[batch].long()
   residual = values.softmax(1)
   residual[torch.arange(len(batch), device=batch.device), target] -= 1
-  columns = jacobian.abs().sum(1)
-  winners = columns.argmax(1)
-  directions = jacobian.gather(
-    2, winners[:, None, None].expand(-1, centers.shape[1], 1)).squeeze(2).sign()
-  basis = torch.nn.functional.one_hot(winners, values.shape[1]).to(values.dtype)
+  delta_left, delta_right, penalty = dual.maximize(jacobian, rho)
   rate, shrink = eta * len(centers) / len(batch), 1 - eta * lam
   state["alpha"].mul_(shrink).index_add_(0, batch, residual, alpha=-rate)
   factors.scale(state["factors"], shrink)
   if rho:
     for row, index in enumerate(batch.tolist()):
-      factors.add(state["factors"], index, -rate * rho * directions[row], basis[row])
+      factors.add(state["factors"], index, -rate * delta_left[row], delta_right[row])
   state["iterations"] += 1
   return dict(iteration=state["iterations"],
     batch_cross_entropy=torch.nn.functional.cross_entropy(values, target).item(),
     batch_accuracy=(values.argmax(1) == target).float().mean().item(),
-    batch_jacobian_penalty=columns.max(1).values.mean().item())
+    batch_jacobian_penalty=penalty.mean().item())

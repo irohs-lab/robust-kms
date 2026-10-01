@@ -722,6 +722,8 @@ value and input-gradient evaluation.
 
 ## Multiclass models with delayed rank-one projection
 
-The multiclass cross-entropy solver, incremental QR factors, and separate
-RKHS projection step are documented in [docs/multiclass_projection.md](docs/multiclass_projection.md).
+The multiclass cross-entropy solver uses an exact rank-one dual maximizer,
+RKHS primal updates, and shuffled passes without replacement. It projects
+every `project_every` epochs (default `1`). Incremental QR factors and the
+coupled RKHS projection step are documented in [docs/multiclass_projection.md](docs/multiclass_projection.md).
 Run the small example with `python -m examples.train_multiclass`.
