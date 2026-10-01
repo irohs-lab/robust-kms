@@ -766,8 +766,12 @@ python -m experiments.multiclass_report \
 ```
 
 The defaults use `project_every=1`, at most three factor refinement steps per
-projection, a 200-epoch cap, and patience 10. The robust learning rate decays;
-the baseline uses a fixed rate. PGD evaluation uses 100 test examples per class,
+projection, a 200-epoch cap, and patience 10. Both use a constant small step:
+the baseline uses `eta=0.01`; the robust RKHS step defaults to
+`0.01 * batch_size / n`, giving the same effective coefficient rate on full
+minibatches. `--robust-decay` enables a decaying schedule. The projection
+linear solves use `rtol=1e-3`, with the true per-class residual checked.
+`--train-epochs 10` limits a first comparison to ten epochs. PGD evaluation uses 100 test examples per class,
 20 steps, and an input-space L-infinity budget of `8/255`. These attack results
 are empirical, not certificates or AutoAttack scores. `--eigenpro-storage
 matfree` at preparation avoids the optional dense scalar kernel cache used

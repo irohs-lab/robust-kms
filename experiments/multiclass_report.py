@@ -164,11 +164,15 @@ def _projection_summary(history):
            "a globally optimal projection. `already_rank_one` means compression "
            "was unnecessary for that target.", "", "Latest recorded projection:", ""]
   epoch, latest = records[-1]
+  solve = latest.get("kernel_solve", {})
   fields = (("Epoch", epoch), ("Termination reason", latest.get("reason", "—")),
             ("Factor steps", latest.get("iterations")),
             ("Initial squared RKHS error", latest.get("initial_error_squared")),
             ("Final squared RKHS error", latest.get("error_squared")),
             ("Maximum training-logit correction error", latest.get("max_value_error")),
+            ("Final solve maximum relative residual", solve.get("max_relative_residual")),
+            ("Final solve maximum scaled residual", solve.get("max_scaled_residual")),
+            ("Full-center EigenPro diagonal bound", solve.get("beta")),
             ("EigenPro solve calls", latest.get("kernel_solve_calls")),
             ("EigenPro epochs across all solves", latest.get("kernel_solve_epochs")),
             ("Projection seconds", latest.get("elapsed_seconds")))
@@ -223,6 +227,7 @@ def _summary(runs, config, results, histories, rows, warnings):
           "length_scale", "bandwidth", "lam", "lambda", "rho", "epsilon",
           "eta", "robust_eta", "robust_decay", "baseline_eta", "batch_size", "project_every",
           "projection_steps", "solve_rtol", "solve_atol", "solve_max_epochs", "eigenpro_storage",
+          "eigenpro_samples", "eigenpro_rank",
           "max_epochs", "epochs", "patience", "min_delta", "selection_metric", "selection",
           "code_commit", "baseline_update", "penalty", "attack_per_class",
           "attack_samples", "attack_epsilon", "attack_steps", "attack_step_size")
@@ -290,6 +295,21 @@ def _summary(runs, config, results, histories, rows, warnings):
             "", "Dashed lines use the fixed training evaluation subset, not the "
             "entire training set. No test metrics are used in these curves.", "",
             "Machine-readable aggregate results: [comparison.csv](comparison.csv).", ""]
+  reference = _read_json(runs / "baseline_200_reference" / "result.json", warnings)
+  if reference is not None and isinstance(reference.get("test"), dict):
+    attack = reference.get("attack") or {}
+    lines += ["## Longer baseline reference", "",
+      "This separately retained baseline uses more epochs than the first comparison. "
+      "It shares the split, kernel, learning rate, and attack subset. Its performance "
+      "does not establish a difference under matched training budgets.", ""]
+    lines += _table(("Model", "Epochs run", "Selected epoch", "Clean test accuracy",
+                     "Test CE", "PGD accuracy", "Training seconds"), [
+      ("Base kernel cross-entropy", reference.get("epochs_run", "—"),
+       reference.get("selected_epoch", "—"),
+       _number(reference["test"].get("accuracy"), percent=True),
+       _number(reference["test"].get("cross_entropy")),
+       _number(attack.get("robust_accuracy"), percent=True),
+       _number(reference.get("training_seconds"), 1))]) + [""]
   if warnings:
     lines += ["## Input warnings", ""] + ["- " + warning for warning in warnings] + [""]
   return "\n".join(lines)

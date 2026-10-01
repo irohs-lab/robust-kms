@@ -57,7 +57,8 @@ def prepare(args):
     test_samples=len(data["test_x"]), kernel="matern52", length_scale=bandwidth,
     rho=args.rho, epsilon=args.epsilon, lam=0., epochs=args.epochs,
     patience=args.patience, batch_size=args.batch_size, project_every=1,
-    robust_eta=args.robust_eta if args.robust_eta is not None else 2 / len(x),
+    robust_eta=(args.robust_eta if args.robust_eta is not None
+                else args.baseline_eta * args.batch_size / len(x)),
     robust_decay=args.robust_decay, baseline_eta=args.baseline_eta,
     query_tile=args.query_tile, center_tile=args.center_tile,
     projection_steps=args.projection_steps, eigenpro_storage=args.eigenpro_storage,
@@ -233,7 +234,7 @@ def main():
   parser.add_argument("--batch-size", type=int, default=128)
   parser.add_argument("--baseline-eta", type=float, default=.01)
   parser.add_argument("--robust-eta", type=float)
-  parser.add_argument("--robust-decay", type=float, default=.6)
+  parser.add_argument("--robust-decay", type=float, default=0.)
   parser.add_argument("--rho", type=float, default=8 / 255)
   parser.add_argument("--epsilon", type=float, default=8 / 255)
   parser.add_argument("--seed", type=int, default=42)
