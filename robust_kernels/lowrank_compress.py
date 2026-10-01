@@ -10,14 +10,25 @@ def rank_one(factors):
   tiny = torch.finfo(left.dtype).tiny
   u = left * (size / ln.clamp_min(tiny))[:, None]
   v = right * (size / rn.clamp_min(tiny))[:, None] * (1 if scale >= 0 else -1)
+  groups = {}
   for index, item in factors["pending"].items():
-    ql, singular, qrt = torch.linalg.svd(scale * item["core"], full_matrices=False)
-    if singular.numel() == 0:
-      u[index].zero_()
-      v[index].zero_()
-    else:
-      u[index] = (item["left"] @ ql[:, 0]) * singular[0].sqrt()
-      v[index] = (item["right"] @ qrt[0]) * singular[0].sqrt()
+    groups.setdefault(tuple(item["core"].shape), []).append((index, item))
+  for shape, entries in groups.items():
+    # Bound scratch storage while batching the tiny SVDs and factor products.
+    for start in range(0, len(entries), 4096):
+      selected = entries[start:start + 4096]
+      indices = torch.tensor([i for i, _ in selected], device=left.device)
+      if min(shape) == 0:
+        u[indices] = 0
+        v[indices] = 0
+        continue
+      cores = torch.stack([item["core"] for _, item in selected]) * scale
+      ql, singular, qrt = torch.linalg.svd(cores, full_matrices=False)
+      roots = singular[:, :1].sqrt()
+      left_batch = torch.stack([item["left"] for _, item in selected])
+      u[indices] = torch.bmm(left_batch, ql[:, :, :1]).squeeze(2) * roots
+      right_batch = torch.stack([item["right"] for _, item in selected])
+      v[indices] = torch.bmm(right_batch, qrt[:, :1, :].transpose(1, 2)).squeeze(2) * roots
   return {"u": u, "v": v, "scale": 1.0, "pending": {}}
 
 

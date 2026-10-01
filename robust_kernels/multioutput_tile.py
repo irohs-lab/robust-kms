@@ -4,7 +4,7 @@ import robust_kernels.lowrank_factors as factors_ops
 
 
 def evaluate_tile(queries, centers, alpha, factors, start, stop, kernel,
-                  length_scale, gradients):
+                  length_scale, gradients, prepared=None):
   kernel_values, a, b = radial.radial_terms(queries, centers, kernel, length_scale)
   values = kernel_values @ alpha
   jacobian = (queries.new_empty((len(queries), centers.shape[1], alpha.shape[1]))
@@ -14,7 +14,7 @@ def evaluate_tile(queries, centers, alpha, factors, start, stop, kernel,
       g = a @ (alpha[:, c, None] * centers)
       g.sub_(queries * (a @ alpha[:, c])[:, None])
     if factors is not None:
-      beta = factors_ops.column(factors, start, stop, c)
+      beta = factors_ops.column(factors, start, stop, c, prepared=prepared)
       if (beta.shape != centers.shape or beta.dtype != centers.dtype
           or beta.device != centers.device):
         raise ValueError("factor columns must match the centers' shape and type")

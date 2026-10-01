@@ -14,9 +14,14 @@ def block(factors, index):
   return left[:, None] / nl, core, right[:, None] / nr
 
 
-def column(factors, start, stop, output):
+def column(factors, start, stop, output, prepared=None):
   """Reconstruct one output's derivative weights for a slice of centers."""
   result = factors["u"][start:stop] * factors["v"][start:stop, output, None]
+  if prepared is not None:
+    for indices, left, right in prepared:
+      result.index_copy_(0, indices,
+        torch.bmm(left, right[:, :, output, None]).squeeze(2))
+    return result * factors["scale"]
   pending = factors["pending"]
   indices = range(start, stop) if stop - start < len(pending) else pending
   for index in indices:

@@ -116,7 +116,8 @@ two reorthogonalization passes. Residuals below 8*machine_epsilon times
 the update norm are treated as numerically dependent. QR accumulation
 does not deliberately truncate nonzero directions. A small-core SVD can
 remove redundant basis dimensions. It bounds the basis widths by min(d,c).
-The full n*d*c coefficient array is never formed. At T=1, independent rank-one
+Pending skinny factors are packed in batches once per evaluation and reused
+across classes and query tiles. The full n*d*c coefficient array is never formed. At T=1, independent rank-one
 initialization uses cores of at most 2 by 2, up to roundoff in QR accumulation.
 
 ## Coupled RKHS projection
@@ -152,6 +153,9 @@ Loosening tolerance also loosens training-logit preservation.
 
 The alpha correction preserves f(X) up to numerical solve/evaluation error.
 `max_value_error` reports the observed maximum change over all training logits.
+Already rank-one targets are consolidated without kernel solves. These
+reports have reason `already_rank_one` and `max_value_error=None`, because no
+additional training-logit pass is performed.
 No K, G, H, Schur matrix, or n*d*c residual is stored; derivative residuals are
 evaluated in query tiles. Alpha remains an n*c array. State records
 `last_projection` in iterations and `last_projection_epoch` in completed epochs.

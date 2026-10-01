@@ -21,13 +21,16 @@ def measure(centers, target, candidate, target_values, options, solver, workspac
     v, jacobian = evaluation.kernel_eval_and_grad(
       centers[rows], centers, correction, candidate, **options)
     reference, reference_jacobian = evaluation.kernel_eval_and_grad(
-      centers[rows], centers, zeros, target, **options)
+      centers[rows], centers, zeros, target,
+      factor_cache=workspace.get("target_factor_cache"), **options)
     residual = jacobian - reference_jacobian
     error += (correction[rows] * (v - reference)).sum()
     max_value_error = max(max_value_error, (v - reference).abs().max().item())
+    query_cache = workspace.get("target_query_cache")
+    prepared = None if query_cache is None else query_cache[start // options["query_tile"]]
     for c in range(zeros.shape[1]):
       difference = (factors.column(candidate, start, stop, c) -
-                    factors.column(target, start, stop, c))
+                    factors.column(target, start, stop, c, prepared=prepared))
       error += (difference * residual[:, :, c]).sum()
     if gradient:
       empty = (candidate["u"][rows].norm(dim=1) == 0) & (candidate["v"][rows].norm(dim=1) == 0)

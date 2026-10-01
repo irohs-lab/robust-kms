@@ -1,0 +1,249 @@
+"""Render a transparent comparison from shared multiclass run artifacts."""
+
+import argparse
+import csv
+import json
+import math
+from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+
+MODELS = {"robust": "RKHS adversarial training", "baseline": "Base kernel cross-entropy"}
+FIELDS = (
+  "model", "status", "selected_epoch", "epochs_run", "training_seconds",
+  "validation_samples", "validation_accuracy", "validation_cross_entropy",
+  "test_samples", "test_accuracy", "test_cross_entropy",
+  "attack_samples", "attack_clean_accuracy", "attack_robust_accuracy",
+  "attack_cross_entropy", "attack", "epsilon", "steps", "step_size",
+  "restarts", "attack_seed", "max_linf")
+
+
+def _read_json(path, warnings):
+  if not path.exists():
+    return None
+  try:
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict):
+      raise ValueError("expected a JSON object")
+    return value
+  except (ValueError, OSError) as error:
+    warnings.append(f"Could not read {path}: {error}")
+    return None
+
+
+def _history(path, warnings):
+  rows = []
+  if not path.exists():
+    return rows
+  for number, line in enumerate(path.read_text().splitlines(), 1):
+    if not line.strip():
+      continue
+    try:
+      row = json.loads(line)
+    except ValueError:
+      warnings.append(f"Skipped incomplete or invalid JSON at {path}:{number}.")
+      continue
+    if (isinstance(row, dict) and row.get("event", "epoch") == "epoch"
+        and isinstance(row.get("epoch"), (int, float))):
+      rows.append(row)
+  return sorted(rows, key=lambda row: row["epoch"])
+
+
+def _flat(name, result, history):
+  complete = (result is not None and isinstance(result.get("validation"), dict)
+              and isinstance(result.get("test"), dict)
+              and result.get("selected_epoch") is not None)
+  status = "complete" if complete else ("incomplete" if history or result else "not started")
+  row = dict.fromkeys(FIELDS)
+  row.update(model=name, status=status)
+  if not complete:
+    row["epochs_run"] = history[-1]["epoch"] if history else None
+    return row
+  for key in ("selected_epoch", "epochs_run", "training_seconds"):
+    row[key] = result.get(key)
+  for split in ("validation", "test"):
+    for key in ("samples", "accuracy", "cross_entropy"):
+      row[split + "_" + key] = result[split].get(key)
+  attack = result.get("attack")
+  if isinstance(attack, dict):
+    for key in ("samples", "clean_accuracy", "cross_entropy"):
+      row["attack_" + key] = attack.get(key)
+    row["attack_robust_accuracy"] = attack.get("robust_accuracy", attack.get("accuracy"))
+    row["attack_seed"] = attack.get("seed")
+    for key in ("attack", "epsilon", "steps", "step_size", "restarts", "max_linf"):
+      row[key] = attack.get(key)
+  return row
+
+
+def _number(value, digits=4, percent=False):
+  if not isinstance(value, (int, float)) or not math.isfinite(value):
+    return "—"
+  return f"{100 * value:.2f}%" if percent else f"{value:.{digits}f}"
+
+
+def _integer(value):
+  return str(value) if isinstance(value, (int, float)) else "—"
+
+
+def _table(headers, rows):
+  return ["| " + " | ".join(headers) + " |",
+          "| " + " | ".join("---" for _ in headers) + " |"] + [
+    "| " + " | ".join(str(value).replace("|", "\\|") for value in row) + " |"
+    for row in rows]
+
+
+def _curves(histories, output):
+  figure, axes = plt.subplots(1, 2, figsize=(12, 4.5), constrained_layout=True)
+  colors = {"robust": "#0072B2", "baseline": "#D55E00"}
+  for axis, metric, ylabel in zip(axes, ("accuracy", "cross_entropy"),
+                                  ("Accuracy (%)", "Cross-entropy")):
+    plotted = False
+    for name, rows in histories.items():
+      for split, style, suffix in (("validation", "-", "validation"),
+                                   ("train_subset", "--", "training subset")):
+        available = [row for row in rows if isinstance(row.get(split), dict)
+                     and isinstance(row[split].get(metric), (int, float))
+                     and math.isfinite(row[split][metric])]
+        if not available:
+          continue
+        plotted = True
+        scale = 100 if metric == "accuracy" else 1
+        axis.plot([row["epoch"] for row in available],
+                  [scale * row[split][metric] for row in available], style,
+                  color=colors[name], linewidth=1.7,
+                  label=f"{MODELS[name]}: {suffix}")
+    if plotted:
+      axis.legend(fontsize=8)
+    else:
+      axis.text(.5, .5, "No epoch metrics available", ha="center", va="center",
+                 transform=axis.transAxes)
+    axis.set(xlabel="Epoch", ylabel=ylabel)
+    axis.grid(alpha=.25)
+  figure.savefig(output / "learning_curves.png", dpi=180)
+  plt.close(figure)
+
+
+def _summary(runs, config, results, histories, rows, warnings):
+  lines = ["# FashionMNIST: ten-class kernel comparison", "",
+           f"Run artifacts: `{runs.resolve()}`.", ""]
+  incomplete = [MODELS[row["model"]] for row in rows if row["status"] != "complete"]
+  if incomplete:
+    lines += ["**Comparison incomplete.** Final test results are unavailable for "
+              + ", ".join(incomplete) + ". Missing values below are not estimates.", ""]
+  lines += ["Both models use raw image pixels in [0, 1], all ten FashionMNIST "
+            "classes, a shared stratified training/validation split, and the "
+            "official test set. Bandwidth is estimated from training data only.", "",
+            "The robust model uses the implemented RKHS stochastic primal/dual "
+            "updates with rank-one derivative coefficients restored at projection "
+            "boundaries. Its regularizer is the maximum classwise input-gradient "
+            "L1 norm. The baseline minimizes multiclass cross-entropy using the "
+            "KLR model and plain kernel SGD, without EigenPro preconditioning.", ""]
+  settings = []
+  keys = ("dataset", "classes", "outputs", "seed", "train_samples", "validation_samples",
+          "test_samples", "train_per_class", "validation_fraction", "kernel",
+          "length_scale", "bandwidth", "lam", "lambda", "rho", "epsilon",
+          "eta", "robust_eta", "baseline_eta", "batch_size", "project_every",
+          "max_epochs", "epochs", "patience", "min_delta", "selection_metric",
+          "attack_samples", "attack_epsilon", "attack_steps", "attack_step_size")
+  for key in keys:
+    if key in config:
+      settings.append((key, json.dumps(config[key], ensure_ascii=False)))
+  if settings:
+    lines += ["## Shared run configuration", ""]
+    lines += _table(("Setting", "Value"), settings) + [""]
+  lines += ["## Selected checkpoints", "",
+            "Final metrics below come only from saved result files. Checkpoint "
+            "selection uses validation cross-entropy; test performance is reported "
+            "after selection. Training time is the accumulated training time "
+            "recorded by the runner, not total wall time.", ""]
+  lines += _table(("Model", "Status", "Selected epoch", "Epochs run", "Training seconds"), [
+    (MODELS[row["model"]], row["status"], _integer(row["selected_epoch"]),
+     _integer(row["epochs_run"]), _number(row["training_seconds"], 1)) for row in rows])
+  lines += ["", "## Clean evaluation", ""]
+  lines += _table(("Model", "Validation n", "Validation accuracy", "Validation CE",
+                    "Test n", "Test accuracy", "Test CE"), [
+    (MODELS[row["model"]], _integer(row["validation_samples"]),
+     _number(row["validation_accuracy"], percent=True), _number(row["validation_cross_entropy"]),
+     _integer(row["test_samples"]), _number(row["test_accuracy"], percent=True),
+     _number(row["test_cross_entropy"])) for row in rows])
+  lines += ["", "## Adversarial evaluation", "",
+            "PGD cross-entropy attacks use a fixed, stratified test subset shared "
+            "by both models. Reported robust accuracy counts a sample as correct "
+            "only if the clean image, random start, and every attack iterate "
+            "remain correctly classified. It is empirical accuracy under this "
+            "attack, not a certificate or an AutoAttack result. Attack CE is the "
+            "mean largest CE encountered per sample.", ""]
+  lines += _table(("Model", "Attack n", "Subset clean accuracy", "PGD accuracy", "Attack CE"), [
+    (MODELS[row["model"]], _integer(row["attack_samples"]),
+     _number(row["attack_clean_accuracy"], percent=True),
+     _number(row["attack_robust_accuracy"], percent=True),
+     _number(row["attack_cross_entropy"])) for row in rows])
+  lines += [""]
+  lines += _table(("Model", "Attack", "Linf budget", "Steps", "Step size", "Restarts",
+                    "Seed", "Largest observed Linf"), [
+    (MODELS[row["model"]], row["attack"] or "not evaluated", _number(row["epsilon"], 6),
+     _integer(row["steps"]), _number(row["step_size"], 6), _integer(row["restarts"]),
+     _integer(row["attack_seed"]), _number(row["max_linf"], 6)) for row in rows])
+  lines += ["", "A single split and seed do not measure run-to-run variability. "
+            "These aggregate artifacts do not support paired bootstrap intervals "
+            "or significance tests; none are claimed.", ""]
+  class_rows = []
+  for index in range(10):
+    values = [str(index)]
+    for name in MODELS:
+      result = results[name] or {}
+      for split in ("test", "attack"):
+        section = result.get(split)
+        accuracies = section.get("per_class_accuracy", []) if isinstance(section, dict) else []
+        values.append(_number(accuracies[index], percent=True) if index < len(accuracies) else "—")
+    class_rows.append(values)
+  if any(value != "—" for row in class_rows for value in row[1:]):
+    lines += ["## Per-class accuracy", ""]
+    lines += _table(("Class", "Robust model: clean", "Robust model: PGD",
+                      "Base kernel: clean", "Base kernel: PGD"), class_rows) + [""]
+  lines += ["## Learning curves", "", "![Training-subset and validation learning curves](learning_curves.png)",
+            "", "Dashed lines use the fixed training evaluation subset, not the "
+            "entire training set. No test metrics are used in these curves.", "",
+            "Machine-readable aggregate results: [comparison.csv](comparison.csv).", ""]
+  if warnings:
+    lines += ["## Input warnings", ""] + ["- " + warning for warning in warnings] + [""]
+  return "\n".join(lines)
+
+
+def build(runs, output):
+  """Write a summary, CSV, and plot; never substitute metrics for missing runs."""
+  runs, output = Path(runs), Path(output)
+  output.mkdir(parents=True, exist_ok=True)
+  warnings = []
+  config = _read_json(runs / "config.json", warnings) or {}
+  results, histories, rows = {}, {}, []
+  for name in MODELS:
+    results[name] = _read_json(runs / name / "result.json", warnings)
+    histories[name] = _history(runs / name / "metrics.jsonl", warnings)
+    rows.append(_flat(name, results[name], histories[name]))
+  with (output / "comparison.csv").open("w", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=FIELDS)
+    writer.writeheader()
+    writer.writerows(rows)
+  _curves(histories, output)
+  (output / "summary.md").write_text(
+    _summary(runs, config, results, histories, rows, warnings))
+  return rows
+
+
+def main():
+  parser = argparse.ArgumentParser(description=__doc__)
+  parser.add_argument("--runs", type=Path, required=True,
+                      help="Shared root containing config.json and model directories")
+  parser.add_argument("--output", type=Path, required=True,
+                      help="Directory for summary.md, comparison.csv, and learning_curves.png")
+  arguments = parser.parse_args()
+  rows = build(arguments.runs, arguments.output)
+  print(json.dumps({"output": str(arguments.output.resolve()),
+                    "models": {row["model"]: row["status"] for row in rows}}, indent=2))
+
+
+if __name__ == "__main__":
+  main()

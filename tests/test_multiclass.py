@@ -83,7 +83,10 @@ def test_multiclass_fit_delays_projection_and_checkpoint_roundtrip():
     events.append((event["iteration"], "projection" in event))
     if "projection" in event:
       assert not state["factors"]["pending"]
-      assert event["projection"]["max_value_error"] < 2e-9
+      if event["projection"]["reason"] == "already_rank_one":
+        assert event["projection"]["kernel_solve_calls"] == 0
+      else:
+        assert event["projection"]["max_value_error"] < 2e-9
       assert state["last_projection"] == event["iteration"]
       assert state["last_projection_epoch"] == event["epoch"]
     if event["iteration"] == 2:
