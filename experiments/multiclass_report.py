@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+from collections import Counter
 import json
 import math
 from pathlib import Path
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 
 MODELS = {"robust": "RKHS adversarial training", "baseline": "Base kernel cross-entropy"}
 FIELDS = (
-  "model", "status", "selected_epoch", "epochs_run", "training_seconds",
+  "model", "status", "stopping_reason", "selected_epoch", "epochs_run", "training_seconds",
   "validation_samples", "validation_accuracy", "validation_cross_entropy",
   "test_samples", "test_accuracy", "test_cross_entropy",
   "attack_samples", "attack_clean_accuracy", "attack_robust_accuracy",
@@ -33,7 +34,7 @@ def _read_json(path, warnings):
     return None
 
 
-def _history(path, warnings):
+def _history(path, warnings, events=None):
   rows = []
   if not path.exists():
     return rows
@@ -45,13 +46,30 @@ def _history(path, warnings):
     except ValueError:
       warnings.append(f"Skipped incomplete or invalid JSON at {path}:{number}.")
       continue
+    if events is not None and isinstance(row, dict):
+      events.append(row)
     if (isinstance(row, dict) and row.get("event", "epoch") == "epoch"
         and isinstance(row.get("epoch"), (int, float))):
       rows.append(row)
   return sorted(rows, key=lambda row: row["epoch"])
 
 
-def _flat(name, result, history):
+def _stopping_reason(result, config, events):
+  epochs = result.get("epochs_run")
+  if any(event.get("event") == "early_stopped" and event.get("epoch") == epochs
+         for event in events):
+    return "patience exhausted (logged)"
+  cap = config.get("epochs", config.get("max_epochs"))
+  if isinstance(epochs, (int, float)) and isinstance(cap, (int, float)) and epochs >= cap:
+    return "epoch cap reached"
+  patience, selected = config.get("patience"), result.get("selected_epoch")
+  if (isinstance(epochs, (int, float)) and isinstance(selected, (int, float))
+      and isinstance(patience, (int, float)) and epochs - selected >= patience):
+    return "patience exhausted (inferred from selected/last epochs)"
+  return "ended before configured cap; stopping reason not logged"
+
+
+def _flat(name, result, history, config=None, events=()):
   complete = (result is not None and isinstance(result.get("validation"), dict)
               and isinstance(result.get("test"), dict)
               and result.get("selected_epoch") is not None)
@@ -61,6 +79,7 @@ def _flat(name, result, history):
   if not complete:
     row["epochs_run"] = history[-1]["epoch"] if history else None
     return row
+  row["stopping_reason"] = _stopping_reason(result, (config or {}) | (result.get("config") or {}), events)
   for key in ("selected_epoch", "epochs_run", "training_seconds"):
     row[key] = result.get(key)
   for split in ("validation", "test"):
@@ -125,6 +144,56 @@ def _curves(histories, output):
   plt.close(figure)
 
 
+
+def _scientific(value):
+  return f"{value:.6g}" if isinstance(value, (int, float)) and math.isfinite(value) else "—"
+
+
+def _projection_summary(history):
+  records = [(row["epoch"], row["projection"]) for row in history
+             if isinstance(row.get("projection"), dict)]
+  if not records:
+    return ["## Projection diagnostics", "", "No projection diagnostics have been recorded.", ""]
+  reasons = Counter(report.get("reason", "unreported") for _, report in records)
+  lines = ["## Projection diagnostics", "",
+           f"Diagnostics cover {len(records)} recorded projected epochs. "
+           + "Termination reasons: " + ", ".join(f"`{reason}`: {count}"
+                                                   for reason, count in sorted(reasons.items())) + ".", "",
+           "`max_steps` means the factor-step budget was reached; `stationary` "
+           "reports the solver's first-order stopping test. Neither establishes "
+           "a globally optimal projection. `already_rank_one` means compression "
+           "was unnecessary for that target.", "", "Latest recorded projection:", ""]
+  epoch, latest = records[-1]
+  fields = (("Epoch", epoch), ("Termination reason", latest.get("reason", "—")),
+            ("Factor steps", latest.get("iterations")),
+            ("Initial squared RKHS error", latest.get("initial_error_squared")),
+            ("Final squared RKHS error", latest.get("error_squared")),
+            ("Maximum training-logit correction error", latest.get("max_value_error")),
+            ("EigenPro solve calls", latest.get("kernel_solve_calls")),
+            ("EigenPro epochs across all solves", latest.get("kernel_solve_epochs")),
+            ("Projection seconds", latest.get("elapsed_seconds")))
+  lines += _table(("Diagnostic", "Value"), [
+    (key, value if isinstance(value, str) else _scientific(value)) for key, value in fields]) + [""]
+  aggregate = []
+  for label, key, reduction in (
+      ("Largest initial squared RKHS error", "initial_error_squared", max),
+      ("Largest final squared RKHS error", "error_squared", max),
+      ("Largest training-logit correction error", "max_value_error", max),
+      ("Total EigenPro solve calls", "kernel_solve_calls", sum),
+      ("Total EigenPro solver epochs", "kernel_solve_epochs", sum),
+      ("Total projection seconds", "elapsed_seconds", sum)):
+    values = [report[key] for _, report in records
+              if isinstance(report.get(key), (int, float)) and math.isfinite(report[key])]
+    aggregate.append((label, _scientific(reduction(values)) if values else "—"))
+  lines += ["Across the recorded projection epochs:", ""]
+  lines += _table(("Diagnostic", "Value"), aggregate) + ["",
+    "Squared RKHS errors are the numerical values reported by the coupled "
+    "projection objective. The logit error measures how accurately the value "
+    "coefficient correction preserves training logits. EigenPro solver epochs "
+    "count passes inside the linear solves, separately from training epochs.", ""]
+  return lines
+
+
 def _summary(runs, config, results, histories, rows, warnings):
   lines = ["# FashionMNIST: ten-class kernel comparison", "",
            f"Run artifacts: `{runs.resolve()}`.", ""]
@@ -139,13 +208,23 @@ def _summary(runs, config, results, histories, rows, warnings):
             "updates with rank-one derivative coefficients restored at projection "
             "boundaries. Its regularizer is the maximum classwise input-gradient "
             "L1 norm. The baseline minimizes multiclass cross-entropy using the "
-            "KLR model and plain kernel SGD, without EigenPro preconditioning.", ""]
+            "KLR model and plain kernel SGD, without EigenPro preconditioning.", "",
+            "The coupled RKHS projection is approximate: it starts with rank-one "
+            "block approximations and takes at most "
+            + str(config.get("projection_steps", "the configured number of"))
+            + " factor refinement steps per projection. No global projection "
+            "optimality is claimed. EigenPro is used only for the robust model's "
+            "projection linear solves. The optional `dense` EigenPro storage "
+            "mode caches the scalar training kernel matrix; it does not change "
+            "the projection objective or add preconditioning to the baseline.", ""]
   settings = []
   keys = ("dataset", "classes", "outputs", "seed", "train_samples", "validation_samples",
           "test_samples", "train_per_class", "validation_fraction", "kernel",
           "length_scale", "bandwidth", "lam", "lambda", "rho", "epsilon",
-          "eta", "robust_eta", "baseline_eta", "batch_size", "project_every",
-          "max_epochs", "epochs", "patience", "min_delta", "selection_metric",
+          "eta", "robust_eta", "robust_decay", "baseline_eta", "batch_size", "project_every",
+          "projection_steps", "solve_rtol", "solve_atol", "solve_max_epochs", "eigenpro_storage",
+          "max_epochs", "epochs", "patience", "min_delta", "selection_metric", "selection",
+          "code_commit", "baseline_update", "penalty", "attack_per_class",
           "attack_samples", "attack_epsilon", "attack_steps", "attack_step_size")
   for key in keys:
     if key in config:
@@ -158,10 +237,14 @@ def _summary(runs, config, results, histories, rows, warnings):
             "selection uses validation cross-entropy; test performance is reported "
             "after selection. Training time is the accumulated training time "
             "recorded by the runner, not total wall time.", ""]
-  lines += _table(("Model", "Status", "Selected epoch", "Epochs run", "Training seconds"), [
-    (MODELS[row["model"]], row["status"], _integer(row["selected_epoch"]),
+  lines += _table(("Model", "Status", "Training stop", "Selected epoch", "Epochs run", "Training seconds"), [
+    (MODELS[row["model"]], row["status"], row["stopping_reason"] or "—", _integer(row["selected_epoch"]),
      _integer(row["epochs_run"]), _number(row["training_seconds"], 1)) for row in rows])
-  lines += ["", "## Clean evaluation", ""]
+  lines += ["", "Reaching the epoch cap is not evidence of optimizer convergence. "
+            "The selected epoch remains the best validation checkpoint among "
+            "the epochs actually run.", ""]
+  lines += _projection_summary(histories["robust"])
+  lines += ["## Clean evaluation", ""]
   lines += _table(("Model", "Validation n", "Validation accuracy", "Validation CE",
                     "Test n", "Test accuracy", "Test CE"), [
     (MODELS[row["model"]], _integer(row["validation_samples"]),
@@ -221,8 +304,9 @@ def build(runs, output):
   results, histories, rows = {}, {}, []
   for name in MODELS:
     results[name] = _read_json(runs / name / "result.json", warnings)
-    histories[name] = _history(runs / name / "metrics.jsonl", warnings)
-    rows.append(_flat(name, results[name], histories[name]))
+    events = []
+    histories[name] = _history(runs / name / "metrics.jsonl", warnings, events)
+    rows.append(_flat(name, results[name], histories[name], config, events))
   with (output / "comparison.csv").open("w", newline="") as handle:
     writer = csv.DictWriter(handle, fieldnames=FIELDS)
     writer.writeheader()

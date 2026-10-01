@@ -727,3 +727,54 @@ RKHS primal updates, and shuffled passes without replacement. It projects
 every `project_every` epochs (default `1`). Incremental QR factors and the
 coupled RKHS projection step are documented in [docs/multiclass_projection.md](docs/multiclass_projection.md).
 Run the small example with `python -m examples.train_multiclass`.
+
+## FashionMNIST: ten-class robust and base-kernel comparison
+
+`experiments.fashion_multiclass` compares the projected RKHS model with a
+cross-entropy base kernel machine using KLR. Both use the same Matérn-5/2
+kernel, training-only median bandwidth, 54,000 training images, 6,000
+validation images, and the official 10,000-image test set. Checkpoints are
+selected by validation cross-entropy. The baseline uses plain kernel SGD;
+EigenPro is used only for linear solves inside the robust model's approximate
+coupled projection.
+
+Install this package and the experiment dependencies. The baseline also
+requires the `klr` package, either installed already or from a local checkout:
+
+```bash
+python -m pip install -e .
+python -m pip install torchvision matplotlib
+python -m pip install -e /path/to/klr
+```
+
+Run from this repository with FashionMNIST already downloaded in
+`/path/to/datasets/FashionMNIST`. Use a new output directory for preparation:
+
+```bash
+python -m experiments.fashion_multiclass \
+    --prepare --output runs/fashion10-comparison \
+    --data-root /path/to/datasets --device cuda:0
+
+python -m experiments.fashion_multiclass \
+    --model baseline --output runs/fashion10-comparison --device cuda:0
+
+python -m experiments.fashion_multiclass \
+    --model robust --output runs/fashion10-comparison --device cuda:0
+
+python -m experiments.multiclass_report \
+    --runs runs/fashion10-comparison --output reports/fashion10-comparison
+```
+
+The defaults use `project_every=1`, at most three factor refinement steps per
+projection, a 200-epoch cap, and patience 10. The robust learning rate decays;
+the baseline uses a fixed rate. PGD evaluation uses 100 test examples per class,
+20 steps, and an input-space L-infinity budget of `8/255`. These attack results
+are empirical, not certificates or AutoAttack scores. `--eigenpro-storage
+matfree` at preparation avoids the optional dense scalar kernel cache used
+by the projection solver. `--train-per-class` creates a smaller pilot;
+`--resume` resumes saved training. Run settings and projection diagnostics are
+recorded alongside the metrics.
+
+Dataset files, split tensors, and model checkpoints remain in the local data
+and run directories; they are not committed. The report contains aggregate
+metrics, learning curves, stopping reasons, and projection diagnostics.

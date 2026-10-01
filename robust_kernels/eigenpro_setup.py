@@ -4,8 +4,16 @@ import robust_kernels._radial as radial
 import robust_kernels.multioutput_evaluate as evaluation
 
 
-def prepare(centers, options, *, samples=1024, rank=100, batch_size=128, seed=0):
-  """Cache the EigenPro2 preconditioner once for all solves in a projection."""
+def prepare(centers, options, *, samples=1024, rank=100, batch_size=128, seed=0,
+            storage="matfree"):
+  """Cache the EigenPro2 preconditioner once for all solves in a projection.
+
+  storage="dense" additionally retains the scalar center Gram matrix. It is
+  assembled in tiles without a second full matrix and lives only in this
+  workspace. Centers and kernel options must remain unchanged during reuse.
+  """
+  if storage not in ("matfree", "dense"):
+    raise ValueError('EigenPro2 storage must be "matfree" or "dense"')
   if any(type(v) is not int for v in (samples, rank, batch_size, seed)):
     raise ValueError("EigenPro2 sizes and seed must be integers")
   if samples < 1 or rank < 0 or batch_size < 1:
@@ -27,7 +35,25 @@ def prepare(centers, options, *, samples=1024, rank=100, batch_size=128, seed=0)
       centers, centers[indices], vectors, gradients=False, **options)
   else:
     extended = centers.new_zeros((len(centers), 0))
+  gram = _gram_matrix(centers, options) if storage == "dense" else None
   return dict(centers=centers, options=options, indices=indices, vectors=vectors,
     extended=extended, beta=beta, next_value=next_value, samples=samples,
     rank=rank, batch_size=batch_size, critical=int(beta * samples / next_value) + 1,
-    generator=generator, warm_start=None, solve_calls=0, total_epochs=0)
+    generator=generator, warm_start=None, solve_calls=0, total_epochs=0,
+    storage=storage, gram=gram)
+
+
+@torch.no_grad()
+def _gram_matrix(centers, options):
+  """Fill one dense allocation using the same scalar radial kernel as matfree."""
+  matrix = centers.new_empty((len(centers), len(centers)))
+  query_tile = options.get("query_tile", 128)
+  center_tile = options.get("center_tile", 1024)
+  for i in range(0, len(centers), query_tile):
+    rows = slice(i, i + query_tile)
+    for j in range(0, len(centers), center_tile):
+      cols = slice(j, j + center_tile)
+      values, _, _ = radial.radial_terms(centers[rows], centers[cols],
+        options["kernel"], options["length_scale"])
+      matrix[rows, cols].copy_(values)
+  return matrix

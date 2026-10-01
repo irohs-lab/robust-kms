@@ -140,7 +140,10 @@ truncation. Diagnostics distinguish stationarity, iteration limit, and failed
 line search, and report initial/final squared RKHS error, projection wall time,
 pending-block count, maximum QR width, and pending-buffer bytes.
 
-K solves use matrix-free EigenPro2 without a hidden ridge/jitter. One
+K solves use EigenPro2 without a hidden ridge/jitter. The default is
+matrix-free; `eigenpro_storage="dense"` optionally caches the scalar K matrix
+for repeated solves when n*n floating-point values fit in memory. The cache
+is temporary projection workspace and is not saved in model checkpoints. One
 Nyström preconditioner is cached for the whole projection, including line
 search, with warm starts between right-hand sides. The default uses up to
 1,024 samples, rank 100, minibatch 128, and 100 solve epochs; sizes are capped
@@ -156,8 +159,10 @@ The alpha correction preserves f(X) up to numerical solve/evaluation error.
 Already rank-one targets are consolidated without kernel solves. These
 reports have reason `already_rank_one` and `max_value_error=None`, because no
 additional training-logit pass is performed.
-No K, G, H, Schur matrix, or n*d*c residual is stored; derivative residuals are
-evaluated in query tiles. Alpha remains an n*c array. State records
+No G, H, Schur matrix, or full n*d*c residual is stored; derivative residuals
+are evaluated in query tiles. The default matrix-free mode also avoids K.
+Candidate-minus-target coefficients are contracted together so each residual
+Jacobian needs only one kernel pass. Alpha remains an n*c array. State records
 `last_projection` in iterations and `last_projection_epoch` in completed epochs.
 
 Increase `project_every` when projection time dominates and the temporary

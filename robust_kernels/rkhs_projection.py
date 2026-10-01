@@ -12,7 +12,7 @@ import robust_kernels.projection_search as search
 @torch.no_grad()
 def project(centers, state, *, max_steps=20, tolerance=1e-6, step_size=1.,
             solve_rtol=1e-6, solve_atol=1e-8, solve_max_epochs=100,
-            eigenpro_samples=1024, eigenpro_rank=100, eigenpro_batch_size=128,
+            eigenpro_samples=1024, eigenpro_rank=100, eigenpro_batch_size=128, eigenpro_storage="matfree",
             seed=0, kernel="gaussian",
             length_scale=1., query_tile=128, center_tile=1024):
   """Approximate the coupled RKHS rank-one projection; mutate only on success.
@@ -52,7 +52,7 @@ def project(centers, state, *, max_steps=20, tolerance=1e-6, step_size=1.,
   values, _ = evaluation.kernel_eval_and_grad(
     centers, centers, zeros, target, gradients=False, factor_cache=target_cache, **options)
   workspace = eigenpro.prepare(centers, options, samples=eigenpro_samples,
-    rank=eigenpro_rank, batch_size=eigenpro_batch_size, seed=seed)
+    rank=eigenpro_rank, batch_size=eigenpro_batch_size, seed=seed, storage=eigenpro_storage)
   workspace["target_factor_cache"] = target_cache
   workspace["target_query_cache"] = factor_packing.prepare(target, query_tile)
   current = residual.measure(centers, target, candidate, values, options, solver, workspace)

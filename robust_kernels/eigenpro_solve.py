@@ -13,7 +13,9 @@ def solve(workspace, rhs, *, rtol=1e-6, atol=1e-8, max_epochs=100):
   if type(max_epochs) is not int or max_epochs < 1:
     raise ValueError("solve_max_epochs must be a positive integer")
   workspace["solve_calls"] += 1
-  apply = lambda w: kernel_operator.apply(workspace["centers"], w, **workspace["options"])
+  gram = workspace.get("gram")
+  apply = (lambda w: gram @ w) if gram is not None else (
+    lambda w: kernel_operator.apply(workspace["centers"], w, **workspace["options"]))
   threshold = atol + rtol * rhs.norm(dim=0)
   solution, residual = torch.zeros_like(rhs), rhs.norm(dim=0)
   warm = workspace["warm_start"]
@@ -28,10 +30,18 @@ def solve(workspace, rhs, *, rtol=1e-6, atol=1e-8, max_epochs=100):
       workspace["warm_start"] = solution.clone()
       return solution, dict(method="eigenpro2", epochs=epoch,
         max_residual=residual.max().item(), samples=workspace["samples"],
-        rank=workspace["rank"], batch_size=workspace["batch_size"])
+        rank=workspace["rank"], batch_size=workspace["batch_size"],
+        storage=workspace.get("storage", "matfree"))
     if epoch < max_epochs:
       iteration.epoch(workspace, solution, rhs)
       workspace["total_epochs"] += 1
       residual = (apply(solution) - rhs).norm(dim=0)
-  raise RuntimeError("EigenPro2 failed its residual tolerance; increase solve_max_epochs, "
-                     "adjust the preconditioner, or use float64")
+  ratio = torch.where(threshold == 0,
+    torch.where(residual == 0, 0., torch.inf), residual / threshold)
+  raise RuntimeError("EigenPro2 failed its residual tolerance: "
+    f"max_residual={residual.max().item():.6g}, "
+    f"max_threshold={threshold.max().item():.6g}, "
+    f"max_component_ratio={ratio.max().item():.6g}, "
+    f"max_epochs={max_epochs}, storage={workspace.get('storage', 'matfree')}, "
+    f"dtype={rhs.dtype}; increase solve_max_epochs, adjust the preconditioner, "
+    "or use float64")

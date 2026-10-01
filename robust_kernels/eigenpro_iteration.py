@@ -4,7 +4,7 @@ import robust_kernels.multioutput_evaluate as evaluation
 
 @torch.no_grad()
 def epoch(workspace, solution, rhs):
-  x = workspace["centers"]
+  x, gram = workspace["centers"], workspace.get("gram")
   batches = torch.randperm(len(x), device=x.device,
     generator=workspace["generator"]).split(workspace["batch_size"])
   for rows in batches:
@@ -12,8 +12,11 @@ def epoch(workspace, solution, rhs):
     rate = (1 / workspace["beta"] if size < workspace["critical"] else
       2 / (workspace["beta"] +
            (size - 1) * workspace["next_value"] / workspace["samples"]))
-    prediction, _ = evaluation.kernel_eval_and_grad(
-      x[rows], x, solution, gradients=False, **workspace["options"])
+    if gram is None:
+      prediction, _ = evaluation.kernel_eval_and_grad(
+        x[rows], x, solution, gradients=False, **workspace["options"])
+    else:
+      prediction = gram[rows] @ solution
     residual = prediction - rhs[rows]
     solution[rows] -= rate * residual
     solution[workspace["indices"]] += rate * workspace["vectors"] @ (

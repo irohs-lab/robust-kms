@@ -60,7 +60,9 @@ def prepare(args):
     robust_eta=args.robust_eta if args.robust_eta is not None else 2 / len(x),
     robust_decay=args.robust_decay, baseline_eta=args.baseline_eta,
     query_tile=args.query_tile, center_tile=args.center_tile,
-    projection_steps=args.projection_steps, solve_rtol=args.solve_rtol,
+    projection_steps=args.projection_steps, eigenpro_storage=args.eigenpro_storage,
+    eigenpro_samples=args.eigenpro_samples, eigenpro_rank=args.eigenpro_rank,
+    solve_rtol=args.solve_rtol,
     solve_atol=args.solve_atol, solve_max_epochs=args.solve_max_epochs,
     attack_per_class=args.attack_per_class, attack_steps=args.attack_steps,
     attack_step_size=2 / 255, attack_batch_size=64,
@@ -68,6 +70,11 @@ def prepare(args):
     baseline_update="alpha[batch] -= eta * (softmax(logits) - one_hot(labels)); no preconditioner",
     penalty="rho * max_class sum_input abs(J[class,input])",
     code_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip())
+  patch = subprocess.check_output(["git", "diff", "HEAD", "--", "robust_kernels", "experiments"], text=True)
+  config["code_dirty"] = bool(patch)
+  if patch:
+    (root / "source.patch").write_text(patch)
+    config["source_patch"] = "source.patch"
   _save(root / "split_indices.pt", split)
   _save(root / "attack_indices.pt", data_io.stratified_indices(
     data["test_y"], args.attack_per_class, seed=args.seed))
@@ -131,13 +138,20 @@ def train(args):
       def callback(current, event):
         if event.get("epoch_end") or current["iterations"] % 100 == 0:
           reporting.write(output, "batch", **event)
-      state = rk.fit_multiclass(x, y, outputs=10, rho=config["rho"], lam=config["lam"],
-        eta=config["robust_eta"], decay=config["robust_decay"], epochs=1,
-        batch_size=config["batch_size"], project_every=config["project_every"],
-        final_projection=False, seed=config["seed"], state=state, callback=callback,
-        projection_options=dict(max_steps=config["projection_steps"],
-          solve_rtol=config["solve_rtol"], solve_atol=config["solve_atol"],
-          solve_max_epochs=config["solve_max_epochs"]), **options)
+      try:
+        state = rk.fit_multiclass(x, y, outputs=10, rho=config["rho"], lam=config["lam"],
+          eta=config["robust_eta"], decay=config["robust_decay"], epochs=1,
+          batch_size=config["batch_size"], project_every=config["project_every"],
+          final_projection=False, seed=config["seed"], state=state, callback=callback,
+          projection_options=dict(max_steps=config["projection_steps"],
+            eigenpro_storage=config.get("eigenpro_storage", "matfree"),
+            eigenpro_samples=config.get("eigenpro_samples", 1024),
+            eigenpro_rank=config.get("eigenpro_rank", 100),
+            solve_rtol=config["solve_rtol"], solve_atol=config["solve_atol"],
+            solve_max_epochs=config["solve_max_epochs"]), **options)
+      except Exception:
+        _save(output / "failed_state.pt", dict(state=state, epoch=state["epochs"]))
+        raise
       alpha, factors = state["alpha"], state["factors"]
       projection = state.get("projection")
     else:
@@ -222,6 +236,9 @@ def main():
   parser.add_argument("--query-tile", type=int, default=256)
   parser.add_argument("--center-tile", type=int, default=4096)
   parser.add_argument("--projection-steps", type=int, default=3)
+  parser.add_argument("--eigenpro-storage", choices=("matfree", "dense"), default="dense")
+  parser.add_argument("--eigenpro-samples", type=int, default=1024)
+  parser.add_argument("--eigenpro-rank", type=int, default=100)
   parser.add_argument("--solve-rtol", type=float, default=1e-4)
   parser.add_argument("--solve-atol", type=float, default=1e-6)
   parser.add_argument("--solve-max-epochs", type=int, default=100)

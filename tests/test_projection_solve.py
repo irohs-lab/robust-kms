@@ -83,7 +83,11 @@ def test_failed_eigenpro_projection_preserves_model_state():
     rk.project(x, state, solve_rtol=1e-12, solve_atol=1e-14,
                solve_max_epochs=1, eigenpro_rank=0, eigenpro_batch_size=2)
   except RuntimeError as error:
-    assert "EigenPro2 failed its residual tolerance" in str(error)
+    message = str(error)
+    assert "EigenPro2 failed its residual tolerance" in message
+    for field in ("max_residual=", "max_threshold=", "max_component_ratio=",
+                  "max_epochs=1", "storage=matfree", "dtype=torch.float64"):
+      assert field in message
   else:
     raise AssertionError("An underconverged EigenPro2 solve must fail projection")
   torch.testing.assert_close(state["alpha"], old_alpha, atol=0, rtol=0)

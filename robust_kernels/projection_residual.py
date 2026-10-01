@@ -18,14 +18,11 @@ def measure(centers, target, candidate, target_values, options, solver, workspac
   for start in range(0, len(centers), options["query_tile"]):
     stop = min(start + options["query_tile"], len(centers))
     rows = slice(start, stop)
-    v, jacobian = evaluation.kernel_eval_and_grad(
-      centers[rows], centers, correction, candidate, **options)
-    reference, reference_jacobian = evaluation.kernel_eval_and_grad(
-      centers[rows], centers, zeros, target,
-      factor_cache=workspace.get("target_factor_cache"), **options)
-    residual = jacobian - reference_jacobian
-    error += (correction[rows] * (v - reference)).sum()
-    max_value_error = max(max_value_error, (v - reference).abs().max().item())
+    values_residual, residual = evaluation.kernel_eval_and_grad(
+      centers[rows], centers, correction, candidate, subtract_factors=target,
+      subtract_factor_cache=workspace.get("target_factor_cache"), **options)
+    error += (correction[rows] * values_residual).sum()
+    max_value_error = max(max_value_error, values_residual.abs().max().item())
     query_cache = workspace.get("target_query_cache")
     prepared = None if query_cache is None else query_cache[start // options["query_tile"]]
     for c in range(zeros.shape[1]):
