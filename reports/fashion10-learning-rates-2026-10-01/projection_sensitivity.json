@@ -1,0 +1,286 @@
+{
+  "purpose": "Single-epoch sensitivity check of projection refinement budget, excluded from learning-rate candidate selection. No test or attack evaluation.",
+  "source_checkpoint": {
+    "source_checkpoint": "/users/faculty/pandit/code/robust-kernels/runs/fashion10-learning-rates/step_0.30/robust/pilot_latest.pt",
+    "sha256": "134f645a0d02c37e7f1e83a3f9bff10c15e80e7cdbec1cefaa57cb5ab56812a3",
+    "source_epoch": 3,
+    "changed_config": {
+      "projection_steps": {
+        "before": 3,
+        "after": 10
+      }
+    },
+    "purpose": "Projection refinement sensitivity only; excluded from learning-rate candidate selection.",
+    "copied_epoch3_metrics": true
+  },
+  "epoch": 4,
+  "effective_coefficient_step_full_batch": 0.3,
+  "configuration_change": {
+    "projection_steps": {
+      "original": 3,
+      "projection_steps10": 10
+    }
+  },
+  "replay_device": "cuda:2",
+  "original_epoch4_device": "cuda:2",
+  "original": {
+    "event": "epoch",
+    "utc": "2026-10-01T17:44:11.381009+00:00",
+    "epoch": 4,
+    "validation": {
+      "accuracy": 0.8316666666666667,
+      "cross_entropy": 0.5345193888346355,
+      "per_class_accuracy": [
+        0.7966666666666666,
+        0.9383333333333334,
+        0.6666666666666666,
+        0.9533333333333334,
+        0.7666666666666667,
+        0.94,
+        0.5183333333333333,
+        0.8633333333333333,
+        0.9316666666666666,
+        0.9416666666666667
+      ],
+      "samples": 6000
+    },
+    "train_subset": {
+      "accuracy": 0.849,
+      "cross_entropy": 0.49728043365478514,
+      "per_class_accuracy": [
+        0.76,
+        0.97,
+        0.69,
+        0.96,
+        0.74,
+        0.96,
+        0.58,
+        0.9,
+        0.95,
+        0.98
+      ],
+      "samples": 1000
+    },
+    "training_seconds": 1386.2559678629623,
+    "epoch_training_seconds": 467.7619771339814,
+    "elapsed_seconds": 468.82062931900145,
+    "projection": {
+      "error_squared": 111.42208862304688,
+      "initial_error_squared": 380.9352722167969,
+      "iterations": 3,
+      "converged": false,
+      "reason": "max_steps",
+      "max_value_error": 0.07547736167907715,
+      "kernel_solve": {
+        "method": "eigenpro2",
+        "epochs": 2,
+        "max_residual": 0.3774402141571045,
+        "max_relative_residual": 0.0008991385111585259,
+        "max_scaled_residual": 0.8991362452507019,
+        "sample_beta": 0.41464996337890625,
+        "beta": 0.6897740960121155,
+        "samples": 1024,
+        "rank": 100,
+        "batch_size": 128,
+        "storage": "dense",
+        "max_value_error": 0.07547736167907715
+      },
+      "pending_blocks_before": 54000,
+      "buffer_bytes": 343872000,
+      "kernel_solve_calls": 8,
+      "kernel_solve_epochs": 146,
+      "max_qr_width": 2,
+      "elapsed_seconds": 380.55535224298364
+    }
+  },
+  "projection_steps10": {
+    "event": "epoch",
+    "utc": "2026-10-01T18:00:05.654326+00:00",
+    "epoch": 4,
+    "validation": {
+      "accuracy": 0.8316666666666667,
+      "cross_entropy": 0.5345353164672851,
+      "per_class_accuracy": [
+        0.7966666666666666,
+        0.9383333333333334,
+        0.6666666666666666,
+        0.9533333333333334,
+        0.7666666666666667,
+        0.94,
+        0.5183333333333333,
+        0.8633333333333333,
+        0.9316666666666666,
+        0.9416666666666667
+      ],
+      "samples": 6000
+    },
+    "train_subset": {
+      "accuracy": 0.849,
+      "cross_entropy": 0.49728094482421875,
+      "per_class_accuracy": [
+        0.76,
+        0.97,
+        0.69,
+        0.96,
+        0.74,
+        0.96,
+        0.58,
+        0.9,
+        0.95,
+        0.98
+      ],
+      "samples": 1000
+    },
+    "training_seconds": 1706.3438032889972,
+    "epoch_training_seconds": 787.8498125600163,
+    "elapsed_seconds": 788.8985574170074,
+    "projection": {
+      "error_squared": 88.39170837402344,
+      "initial_error_squared": 380.9352722167969,
+      "iterations": 10,
+      "converged": false,
+      "reason": "max_steps",
+      "max_value_error": 0.03451353311538696,
+      "kernel_solve": {
+        "method": "eigenpro2",
+        "epochs": 1,
+        "max_residual": 0.443218469619751,
+        "max_relative_residual": 0.0007306054467335343,
+        "max_scaled_residual": 0.730603814125061,
+        "sample_beta": 0.41464996337890625,
+        "beta": 0.6897740960121155,
+        "samples": 1024,
+        "rank": 100,
+        "batch_size": 128,
+        "storage": "dense",
+        "max_value_error": 0.03451353311538696
+      },
+      "pending_blocks_before": 54000,
+      "buffer_bytes": 343872000,
+      "kernel_solve_calls": 15,
+      "kernel_solve_epochs": 153,
+      "max_qr_width": 2,
+      "elapsed_seconds": 699.5857929449994
+    }
+  },
+  "batch_metric_compared_iterations": [
+    1300,
+    1400,
+    1500,
+    1600,
+    1688
+  ],
+  "batch_metric_max_abs_differences": {
+    "batch_cross_entropy": 0.0,
+    "batch_accuracy": 0.0,
+    "batch_jacobian_penalty": 0.0
+  },
+  "projection_initial_squared_distance_difference": 0.0,
+  "common_projection_iteration_squared_distance_differences": {
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.0
+  },
+  "projection_refinement_trace": [
+    {
+      "event": "projection_initial",
+      "utc": "2026-10-01T17:49:19.437268+00:00",
+      "epoch": 4,
+      "error_squared": 380.9352722167969,
+      "elapsed_seconds": 54.493320251000114
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:51:41.419219+00:00",
+      "epoch": 4,
+      "iteration": 1,
+      "error_squared": 260.67596435546875,
+      "elapsed_seconds": 196.47528262098785
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:54:00.435543+00:00",
+      "epoch": 4,
+      "iteration": 2,
+      "error_squared": 129.34678649902344,
+      "elapsed_seconds": 335.49160750498413
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:54:46.108026+00:00",
+      "epoch": 4,
+      "iteration": 3,
+      "error_squared": 111.42208862304688,
+      "elapsed_seconds": 381.1640856669983
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:55:31.613778+00:00",
+      "epoch": 4,
+      "iteration": 4,
+      "error_squared": 105.16333770751953,
+      "elapsed_seconds": 426.66983137998614
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:56:17.125237+00:00",
+      "epoch": 4,
+      "iteration": 5,
+      "error_squared": 101.10533905029297,
+      "elapsed_seconds": 472.1812971449981
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:57:02.612614+00:00",
+      "epoch": 4,
+      "iteration": 6,
+      "error_squared": 97.86626434326172,
+      "elapsed_seconds": 517.6687134399835
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:57:48.113001+00:00",
+      "epoch": 4,
+      "iteration": 7,
+      "error_squared": 95.05989074707031,
+      "elapsed_seconds": 563.1690861179959
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:58:33.656167+00:00",
+      "epoch": 4,
+      "iteration": 8,
+      "error_squared": 92.59368133544922,
+      "elapsed_seconds": 608.7122755739838
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T17:59:19.074676+00:00",
+      "epoch": 4,
+      "iteration": 9,
+      "error_squared": 90.39302825927734,
+      "elapsed_seconds": 654.1307411750022
+    },
+    {
+      "event": "projection_iteration",
+      "utc": "2026-10-01T18:00:04.473857+00:00",
+      "epoch": 4,
+      "iteration": 10,
+      "error_squared": 88.39170837402344,
+      "elapsed_seconds": 699.5299165649922
+    }
+  ],
+  "changes": {
+    "validation_cross_entropy": 1.5927632649681556e-05,
+    "validation_accuracy_percentage_points": 0.0,
+    "train_subset_cross_entropy": 5.111694336146222e-07,
+    "final_squared_distance_ratio": 0.7933050750202886,
+    "projection_seconds": 319.03044070201577
+  },
+  "notes": [
+    "Both runs resume the same saved projected epoch-three state, with unchanged dataset split, kernel, primal rate and RNG state.",
+    "Logged preprojection minibatch statistics and the common refinement iterates provide a numerical check of matching trajectories; matching these summaries does not by itself compare every tensor entry.",
+    "Squared RKHS distance is displacement from the unprojected target, not a constraint violation or certified projection optimality gap.",
+    "This comparison measures one epoch and does not establish the effect of ten refinement steps throughout training."
+  ]
+}

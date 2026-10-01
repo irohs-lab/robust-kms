@@ -1,0 +1,13 @@
+{
+  "epoch": 10,
+  "samples": 1000,
+  "subset": "fixed stratified training subset,100/class,seed42",
+  "cross_entropy": 0.4531293213367462,
+  "accuracy": 0.8510000109672546,
+  "jacobian_penalty_mean": 10.100231170654297,
+  "rho": 0.03137254901960784,
+  "mean_surrogate_objective": 0.7699993188474692,
+  "lam": 0,
+  "checkpoint": "model.pt",
+  "effective_full_batch_step": 0.3
+}

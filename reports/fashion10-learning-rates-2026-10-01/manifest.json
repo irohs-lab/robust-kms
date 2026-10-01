@@ -1,0 +1,47 @@
+{
+  "reference": "reference",
+  "pilot_epochs": 3,
+  "final_epochs": 10,
+  "selection": "Two-stage validation-only selection; see protocol_amendment and selection.json.",
+  "candidates": [
+    {
+      "name": "step_0.03",
+      "effective_step_full_batch": 0.03,
+      "raw_eta": 7.11111111111111e-05,
+      "device": "cuda:0",
+      "output": "step_0.03"
+    },
+    {
+      "name": "step_0.10",
+      "effective_step_full_batch": 0.1,
+      "raw_eta": 0.00023703703703703704,
+      "device": "cuda:1",
+      "output": "step_0.10"
+    },
+    {
+      "name": "step_0.30",
+      "effective_step_full_batch": 0.3,
+      "raw_eta": 0.000711111111111111,
+      "device": "cuda:2",
+      "output": "step_0.30"
+    }
+  ],
+  "code_commit": "45a69ae1a261a3ee0e7dd6bca2952edcc23ce635",
+  "extension_candidates": [
+    "step_0.10",
+    "step_0.30"
+  ],
+  "protocol_amendment": "Before any new test evaluation, extend both step 0.10 and step 0.30 to ten epochs: the pilot winner 0.30 oscillated strongly, whereas runner-up 0.10 decreased monotonically. Select the lowest validation CE across both completed ten-epoch runs and the original reference, then evaluate only the selected checkpoint.",
+  "device_history": {
+    "step_0.03": {
+      "epochs_1_to_3": "cuda:0"
+    },
+    "step_0.10": {
+      "epochs_1_to_10": "cuda:1"
+    },
+    "step_0.30": {
+      "epochs_1_to_4": "cuda:2",
+      "epochs_5_to_10": "cuda:0"
+    }
+  }
+}

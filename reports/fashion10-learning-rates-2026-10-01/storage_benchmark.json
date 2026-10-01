@@ -1,0 +1,169 @@
+{
+  "description": "Synthetic symmetric float32 matrix arithmetic benchmark; not a FashionMNIST training or radial-kernel construction benchmark",
+  "matrix": "K[i,j] = 0.1 + x[i]*x[j]; x = linspace(0, 1, n)",
+  "timestamp_utc": "2026-10-01T17:32:19.718155+00:00",
+  "configuration": {
+    "size": 54000,
+    "outputs": 10,
+    "batch_size": 128,
+    "block_size": 2048,
+    "warmup": 1,
+    "repeats": 5,
+    "seed": 42,
+    "device": "cuda:0",
+    "dtype": "torch.float32"
+  },
+  "environment": {
+    "python": "3.13.5",
+    "torch": "2.12.1+cu132",
+    "cuda": "13.2",
+    "tf32_matmul": false,
+    "torch_threads": 1,
+    "device_name": "NVIDIA RTX 5000 Ada Generation",
+    "klr_source": "/users/faculty/pandit/code/klr/klr/__init__.py",
+    "klr": {
+      "commit": "04d56d69d17284a28a4401e15de8f7a57fefbb72",
+      "branch": "new_api",
+      "dirty": false
+    },
+    "benchmark_repository": {
+      "commit": "45a69ae1a261a3ee0e7dd6bca2952edcc23ce635",
+      "branch": "cvx-formulation",
+      "dirty": true
+    }
+  },
+  "construction": {
+    "dense_kernel": {
+      "seconds": 0.08489540798473172,
+      "allocated_before_bytes": 13493248,
+      "allocated_after_bytes": 11677852672,
+      "peak_allocated_bytes": 11711407104
+    },
+    "packing": {
+      "seconds": 0.5207530769985169,
+      "allocated_before_bytes": 11677852672,
+      "allocated_after_bytes": 17510032384,
+      "peak_allocated_bytes": 17510464512
+    },
+    "dense_reconstruction": {
+      "seconds": 0.07349632901605219,
+      "allocated_before_bytes": 24178176,
+      "allocated_after_bytes": 11688537600,
+      "peak_allocated_bytes": 11722092032
+    },
+    "note": "Construction uses KLR's tiled dense evaluator then its packed constructor, matching kernel_operator(storage='packed'). Packing holds the dense source plus packed destination. Dense reconstruction is needed only to compare products after releasing packed storage."
+  },
+  "memory": {
+    "dense_matrix_storage_bytes": 11664000000,
+    "packed_matrix_storage_bytes": 5832108000,
+    "packed_values": 1458027000,
+    "packed_stage_allocated_bytes": 5845672960,
+    "dense_stage_allocated_bytes": 11688537600,
+    "theoretical_dense_plus_packed_bytes": 17496108000,
+    "note": "Storage bytes count each matrix allocation only. CUDA allocated and peak bytes are this process's live PyTorch allocations, including inputs and workspace; peaks include existing allocations at stage start. They exclude caching-allocator reserve, CUDA context and other processes. Packed-stage memory is sampled after releasing the dense source; dense-stage memory includes retained small packed product outputs. CUDA allocator measurements are null on CPU."
+  },
+  "layout": {
+    "diagonal_blocks": 28,
+    "rectangles": 378
+  },
+  "timings": {
+    "packed_rows": {
+      "mean_seconds": 0.06662317999871448,
+      "median_seconds": 0.06658337300177664,
+      "minimum_seconds": 0.06646312400698662,
+      "repeats_seconds": [
+        0.0668692080071196,
+        0.06646312400698662,
+        0.06658173998584971,
+        0.06658337300177664,
+        0.06661845499183983
+      ]
+    },
+    "packed_full": {
+      "mean_seconds": 3.4716829051903915,
+      "median_seconds": 3.4718641649815254,
+      "minimum_seconds": 3.4637405419780407,
+      "repeats_seconds": [
+        3.472382307983935,
+        3.4718641649815254,
+        3.4681600460025948,
+        3.4637405419780407,
+        3.4822674650058616
+      ]
+    },
+    "dense_rows": {
+      "mean_seconds": 5.852120229974389e-05,
+      "median_seconds": 5.478199454955757e-05,
+      "minimum_seconds": 5.36800071131438e-05,
+      "repeats_seconds": [
+        7.40000104997307e-05,
+        5.6074000895023346e-05,
+        5.478199454955757e-05,
+        5.36800071131438e-05,
+        5.406999844126403e-05
+      ]
+    },
+    "dense_full": {
+      "mean_seconds": 0.02272045920253731,
+      "median_seconds": 0.022206736000953242,
+      "minimum_seconds": 0.0221857950091362,
+      "repeats_seconds": [
+        0.024800640007015318,
+        0.02220770699204877,
+        0.022206736000953242,
+        0.022201418003533036,
+        0.0221857950091362
+      ]
+    }
+  },
+  "correctness": {
+    "packed_vs_analytic": {
+      "rows": {
+        "max_absolute_error": 1.0728836059570312e-06,
+        "relative_frobenius_error": 2.7333010166330496e-07,
+        "rtol": 0.0002,
+        "atol": 0.0001,
+        "passed": true
+      },
+      "full": {
+        "max_absolute_error": 1.5497207641601562e-06,
+        "relative_frobenius_error": 2.710151250084891e-07,
+        "rtol": 0.0002,
+        "atol": 0.0001,
+        "passed": true
+      }
+    },
+    "dense_vs_analytic": {
+      "rows": {
+        "max_absolute_error": 1.0728836059570312e-06,
+        "relative_frobenius_error": 3.207968291008001e-07,
+        "rtol": 0.0002,
+        "atol": 0.0001,
+        "passed": true
+      },
+      "full": {
+        "max_absolute_error": 6.079673767089844e-06,
+        "relative_frobenius_error": 9.251472761206969e-07,
+        "rtol": 0.0002,
+        "atol": 0.0001,
+        "passed": true
+      }
+    },
+    "packed_vs_dense": {
+      "rows": {
+        "max_absolute_error": 1.3113021850585938e-06,
+        "relative_frobenius_error": 3.7360149462983827e-07,
+        "rtol": 0.0002,
+        "atol": 0.0001,
+        "passed": true
+      },
+      "full": {
+        "max_absolute_error": 5.9604644775390625e-06,
+        "relative_frobenius_error": 9.474568969380925e-07,
+        "rtol": 0.0002,
+        "atol": 0.0001,
+        "passed": true
+      }
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "name": "step_0.30",
+  "selected_epoch": 10,
+  "validation": {
+    "accuracy": 0.845,
+    "cross_entropy": 0.48904089991251626,
+    "per_class_accuracy": [
+      0.8133333333333334,
+      0.9516666666666667,
+      0.6216666666666667,
+      0.915,
+      0.8416666666666667,
+      0.935,
+      0.5966666666666667,
+      0.9416666666666667,
+      0.9366666666666666,
+      0.8966666666666666
+    ],
+    "samples": 6000
+  },
+  "candidates": [
+    {
+      "name": "step_0.10",
+      "selected_epoch": 10,
+      "validation": {
+        "accuracy": 0.8388333333333333,
+        "cross_entropy": 0.5272751719156901,
+        "per_class_accuracy": [
+          0.81,
+          0.94,
+          0.7116666666666667,
+          0.9166666666666666,
+          0.7616666666666667,
+          0.9316666666666666,
+          0.5633333333333334,
+          0.9016666666666666,
+          0.9266666666666666,
+          0.925
+        ],
+        "samples": 6000
+      }
+    },
+    {
+      "name": "step_0.30",
+      "selected_epoch": 10,
+      "validation": {
+        "accuracy": 0.845,
+        "cross_entropy": 0.48904089991251626,
+        "per_class_accuracy": [
+          0.8133333333333334,
+          0.9516666666666667,
+          0.6216666666666667,
+          0.915,
+          0.8416666666666667,
+          0.935,
+          0.5966666666666667,
+          0.9416666666666667,
+          0.9366666666666666,
+          0.8966666666666666
+        ],
+        "samples": 6000
+      }
+    },
+    {
+      "name": "robust_reference",
+      "selected_epoch": 10,
+      "validation": {
+        "accuracy": 0.8066666666666666,
+        "cross_entropy": 0.6485023740132649,
+        "per_class_accuracy": [
+          0.8033333333333333,
+          0.9283333333333333,
+          0.68,
+          0.8816666666666667,
+          0.71,
+          0.895,
+          0.505,
+          0.8416666666666667,
+          0.9016666666666666,
+          0.92
+        ],
+        "samples": 6000
+      }
+    }
+  ],
+  "reason": "Lowest validation cross-entropy among the two ten-epoch extensions and the original ten-epoch robust reference. Both extensions were specified before any new test evaluation; test metrics did not enter selection.",
+  "timestamp": 1790879064.421976
+}
