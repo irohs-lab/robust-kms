@@ -49,6 +49,8 @@ def build(runs, output):
   histories, flat = {}, []
   selection_path = runs / "selection.json"
   selection = _read_json(selection_path, warnings)
+  pilot_selection = _read_json(runs / "pilot_selection.json", warnings)
+  extensions = manifest.get("extension_candidates", [])
   if selection and not isinstance(selection.get("name"), str):
     warnings.append("Ignored selection without a candidate name.")
     selection = None
@@ -100,7 +102,9 @@ def build(runs, output):
       best_validation_epoch=best["epoch"] if best else None,
       best_validation_ce=best["validation"]["cross_entropy"] if best else None,
       best_validation_accuracy=best["validation"]["accuracy"] if best else None,
-      selected_for_extension=bool(selection and selection.get("name") == entry["name"]),
+      selected_for_extension=(entry["name"] in extensions if extensions else
+        bool(selection and selection.get("name") == entry["name"])),
+      final_validation_selection=bool(selection and selection.get("name") == entry["name"]),
       max_projection_logit_error=max(errors) if errors else None,
       max_projection_error_squared=max(residual_errors) if residual_errors else None,
       max_projection_remaining_fraction=max(ratios) if ratios else None,
@@ -141,6 +145,20 @@ def build(runs, output):
     axis.legend(fontsize=8)
   figure.savefig(output / "learning_rates.png", dpi=180)
   plt.close(figure)
+  figure, axis = plt.subplots(figsize=(7, 4), constrained_layout=True)
+  for entry, color in zip(entries, cycle(colors)):
+    history = [row for row in histories[entry["name"]]
+               if _metric(row, "training_seconds") is not None and row["training_seconds"] > 0]
+    axis.plot([row["training_seconds"] for row in history],
+              [row["validation"]["cross_entropy"] for row in history],
+              "--" if entry["name"] == "baseline" else "-o", color=color,
+              markersize=3, label=entry["label"])
+  axis.set(xscale="log", xlabel="Recorded training time (seconds; log scale)",
+           ylabel="Validation cross-entropy")
+  axis.grid(alpha=.2)
+  axis.legend(fontsize=8)
+  figure.savefig(output / "learning_rates_time.png", dpi=180)
+  plt.close(figure)
   lines = ["# FashionMNIST: robust learning-rate comparison", "",
     "Same ten-class split, Matérn-5/2 kernel, seed 42, rho = 8/255, lambda = 0, "
     "minibatch 128, constant step, and projection after every epoch as the reference run. "
@@ -152,17 +170,21 @@ def build(runs, output):
     "is 128/112 times this value. Larger rates change only the robust primal step.", "",
     "## Equal-budget pilot", "",
     f"The protocol screens candidates after {manifest['pilot_epochs']} complete projected epochs "
-    "using validation cross-entropy, then extends the selected rate to "
+    "using validation cross-entropy, then extends the chosen candidates to "
     f"{manifest['final_epochs']} epochs and retains its best validation checkpoint. "
     "Test metrics are not used to choose the rate. Recorded completion is shown below.", ""]
   lines += _table(("Model", "Step", "Pilot validation CE", "Pilot validation accuracy", "Selected for extension"), [
     (row["name"], row["effective_step_full_batch"], _number(row["pilot_validation_ce"]),
      _number(row["pilot_validation_accuracy"], percent=True), "yes" if row["selected_for_extension"] else "—")
     for row in flat]) + [""]
+  if pilot_selection:
+    lines += ["Pilot winner: `" + pilot_selection["name"] + "`.", ""]
+  if manifest.get("protocol_amendment"):
+    lines += ["Protocol amendment: " + manifest["protocol_amendment"], ""]
   if selection:
-    lines += ["Recorded selection: `" + selection["name"] + "`. " + str(selection.get("reason", "")), ""]
+    lines += ["Final validation selection: `" + selection["name"] + "`. " + str(selection.get("reason", "")), ""]
   else:
-    lines += ["The pilot selection has not yet been recorded.", ""]
+    lines += ["The final validation selection has not yet been recorded.", ""]
   lines += ["## Available checkpoints", "",
     "Blank test entries mean no final test result is available. "
     "Candidates stopped at the pilot have a smaller training budget. Best validation "
@@ -211,9 +233,16 @@ def build(runs, output):
     "stopping threshold; at most one means that threshold was met. No solve is needed "
     "for the already-rank-one shortcut.", "",
     "![Validation learning curves](learning_rates.png)", "",
+    "![Validation CE versus recorded training time](learning_rates_time.png)", "",
+    "The time axis is logarithmic. Runs used different GPU assignments (recorded in "
+    "manifest.json), so this shows observed cost rather than a hardware-controlled "
+    "throughput benchmark. Training seconds include projection work but exclude "
+    "initial model/kernel-cache setup, validation, checkpoint I/O and final test evaluation.", "",
     "[Machine-readable comparison](comparison.csv)", ""]
   objectives = []
   for entry in entries:
+    if entry["name"] == "baseline":
+      continue
     measured = _read_json(entry["path"].parent / "pilot_objective.json", warnings)
     if measured and measured.get("epoch") == manifest["pilot_epochs"]:
       objectives.append((entry["name"], measured.get("samples", "—"),
@@ -227,6 +256,45 @@ def build(runs, output):
       "Lambda is zero. These diagnostics were not used to select the learning rate.", ""]
     lines += _table(("Model", "Samples", "Mean CE", "Mean Jacobian penalty", "Mean surrogate"),
                     objectives) + [""]
+  final_objectives = []
+  for entry in entries:
+    if entry["name"] == "baseline":
+      continue
+    measured = _read_json(entry["path"].parent / "final_objective.json", warnings)
+    if measured:
+      final_objectives.append((entry["name"], measured.get("epoch", "—"),
+        _number(measured.get("cross_entropy")),
+        _number(measured.get("jacobian_penalty_mean")),
+        _number(measured.get("mean_surrogate_objective"))))
+  if final_objectives:
+    lines += ["## Training surrogate at each run's best validation checkpoint", "",
+      "The same fixed 1,000-example training subset is used. These diagnostics "
+      "do not use test data and do not change the validation-CE selection rule.", ""]
+    lines += _table(("Model", "Checkpoint epoch", "Mean CE", "Mean Jacobian penalty", "Mean surrogate"),
+                    final_objectives) + [""]
+  sensitivity = _read_json(runs / "projection_sensitivity.json", warnings)
+  if sensitivity:
+    lines += ["## Projection refinement sensitivity", "",
+      "One replay of epoch four at effective step 0.30 resumed the same saved "
+      "epoch-three state on the same GPU. Only the factor-refinement budget changed "
+      "from three to ten. All logged preprojection minibatch metrics, the initial "
+      "projection distance and the first three refinement iterates matched exactly. "
+      "This run was excluded from learning-rate selection and had no test evaluation.", ""]
+    sensitivity_rows = []
+    for name in ("original", "projection_steps10"):
+      item = sensitivity[name]
+      projection = item["projection"]
+      sensitivity_rows.append((projection["iterations"],
+        _number(projection["error_squared"]),
+        _number(item["validation"]["cross_entropy"], 7),
+        _number(item["validation"]["accuracy"], percent=True),
+        _number(projection["elapsed_seconds"], 1), projection["reason"]))
+    lines += _table(("Factor steps", "Final squared RKHS distance", "Validation CE",
+      "Validation accuracy", "Projection seconds", "Termination"), sensitivity_rows) + ["",
+      "Additional refinement reduced distance but had negligible immediate impact "
+      "on clean validation performance in this replay. This single-epoch check "
+      "does not establish the effect of using ten steps throughout training.", "",
+      "[Complete sensitivity measurements](projection_sensitivity.json)", ""]
   storage = _read_json(runs / "storage_benchmark.json", warnings)
   if storage:
     memory, timing = storage["memory"], storage["timings"]
