@@ -6,18 +6,8 @@ import hickle
 import torch.nn.functional as F
 
 from torchkernels.kernels.radial import laplacian, gaussian
-# from radial import laplacian
 
 dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# device="cpu"
-
-# import argparse
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--kernel', type=str, default='laplacian', help='Kernel to use: laplacian or gaussian')
-# args = parser.parse_args()
-
-# def laplace_kernel_M(pair1, pair2, bandwidth, M):
-#     return kernels.laplacian_M(pair1, pair2, bandwidth, M)
 
 from torch.func import vmap, jacrev
 from functools import partial
@@ -38,7 +28,6 @@ def get_fixed_indices(n, num_samples, seed=42, device="cpu"):
     g.manual_seed(seed)
     return torch.randint(0, n, (num_samples,), generator=g, device=device)
 
-# def compute_EGOP_with_jacrev_laplacian(X, idx, sol, L, M, num_samples=20000, batch_size=5000):
 def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_size=5000):
     """
     Compute the full Empirical Gradient Outer Product matrix
@@ -46,7 +35,6 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
     
     Returns: (d, d) - EGOP matrix
     """
-    # batch_size = 5000
     X = X.to(dev)
     device, dtype = X.device, X.dtype
     n, d = X.shape
@@ -62,7 +50,6 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
         x_eval = X[idx]
     m = x_eval.shape[0]
     
-    # Define the vectorized gradient function
     def f_all_classes(x):
         x_hat = normalize(x.unsqueeze(0))
         X_hat = normalize(X)
@@ -71,29 +58,16 @@ def compute_EGOP_with_jacrev_laplacian(X, sol, L, M, num_samples=20000, batch_si
     
     grad_fn = jacrev(f_all_classes)
     batched_grad_fn = vmap(grad_fn)
-    
-    # Compute EGOP in batches
-    # EGOP = torch.zeros(d, d, device='cuda', dtype=torch.float32)
+
     EGOP = torch.zeros(d, d, device=dev, dtype=torch.float32)
 
     
     for i in range(0, m, batch_size):
         batch = x_eval[i:i+batch_size]  # (bs, d)
         
-        # Compute gradients: (bs, C, d)
+
         G_batch = torch.nan_to_num(batched_grad_fn(batch), nan = 0.0, posinf = 0.0, neginf = 0.0)
 
-        # return G_batch
-        
-        # Compute outer products: Σ_c ∇f_c(x) ∇f_c(x)^T for each x
-        # G_batch: (bs, C, d) -> (bs, d, C)
-        # G_T = G_batch.transpose(1, 2)
-        
-        # # (bs, d, C) @ (bs, C, d) -> (bs, d, d)
-        # outer_products = G_T @ G_batch
-        
-        # # Sum over batch
-        # EGOP += outer_products.sum(dim=0)
 
         EGOP += torch.einsum('bcd,bce->de', G_batch, G_batch)
 
@@ -126,7 +100,6 @@ def compute_EGOP_with_jacrev_gaussian(X, sol, L, M, num_samples=20000, batch_siz
         x_eval = X[idx]
     m = x_eval.shape[0]
     
-    # Define the vectorized gradient function
     def f_all_classes(x):
         x_hat = normalize(x.unsqueeze(0))
         X_hat = normalize(X)
@@ -135,16 +108,14 @@ def compute_EGOP_with_jacrev_gaussian(X, sol, L, M, num_samples=20000, batch_siz
     
     grad_fn = jacrev(f_all_classes)
     batched_grad_fn = vmap(grad_fn)
-    
-    # Compute EGOP in batches
-    # EGOP = torch.zeros(d, d, device='cuda', dtype=torch.float32)
+
     EGOP = torch.zeros(d, d, device=dev, dtype=torch.float32)
     
     for i in range(0, m, batch_size):
-        batch = x_eval[i:i+batch_size]  # (bs, d)
+        batch = x_eval[i:i+batch_size] 
         
-        # Compute gradients: (bs, C, d)
         G_batch = torch.nan_to_num(batched_grad_fn(batch), nan = 0.0, posinf = 0.0, neginf = 0.0)
+        
         
         EGOP += torch.einsum('bcd,bce->de', G_batch, G_batch)
 
@@ -162,9 +133,7 @@ def rfm_laplacian(train_loader, test_loader,
         print("Loaders provided")
         X_train, y_train = get_data(train_loader)
         X_test, y_test = get_data(test_loader)
-        # y_mean = y_train.mean(dim=0, keepdim=True)
-        # print("y_mean:", y_mean)
-        # y_train = y_train - y_mean
+
     else:
         X_train, y_train = train_loader
         X_test, y_test = test_loader
@@ -180,7 +149,6 @@ def rfm_laplacian(train_loader, test_loader,
     print("X_train[0]:", X_train[0].shape)
     print("y_train:", y_train.shape)
 
-    # Move once to GPU
     X_train = X_train.to(dev)
     X_test = X_test.to(dev)
     y_train = y_train.to(dev)
@@ -196,12 +164,11 @@ def rfm_laplacian(train_loader, test_loader,
     round_best_acc = -1
     kernel_acc = 0.0
 
-    # Precompute normalized test once
     Xh_test = normalize(X_test)
+    Xh_train = normalize(X_train)
 
     for i in range(iters):
-        # GPU kernel matrix + GPU solve
-        Xh_train = normalize(X_train)
+
         K_train = laplacian(Xh_train, Xh_train, L, M)
         I = torch.eye(K_train.shape[0], device=dev, dtype=K_train.dtype)
         sol = torch.linalg.solve(K_train + reg * I, y_train).T
@@ -216,7 +183,6 @@ def rfm_laplacian(train_loader, test_loader,
             count = torch.sum(labels == preds_idx).item()
             print("Round " + str(i) + " Train Acc: ", (count / len(labels)) * 100)
 
-        # GPU test kernel + prediction
         K_test = laplacian(Xh_train, Xh_test, L, M)
         preds = (sol @ K_test).T
 
@@ -238,7 +204,6 @@ def rfm_laplacian(train_loader, test_loader,
             if i == 0:
                 kernel_acc = (count / len(labels)) * 100
 
-        # GPU EGOP update
         M2 = compute_EGOP_with_jacrev_laplacian(
             X_train, sol, L, M, num_samples=20000, batch_size=2500
         ).astype('float32')
@@ -249,7 +214,6 @@ def rfm_laplacian(train_loader, test_loader,
         if name is not None:
             hickle.dump(M.detach().cpu().numpy(), 'saved_Ms/M_' + name + '_' + str(i) + '.h')
 
-    # Final GPU solve
     Xh_train = normalize(X_train)
     K_train = laplacian(Xh_train, Xh_train, L, M)
     I = torch.eye(K_train.shape[0], device=dev, dtype=K_train.dtype)
@@ -286,9 +250,7 @@ def rfm_gaussian(train_loader, test_loader,
         print("Loaders provided")
         X_train, y_train = get_data(train_loader)
         X_test, y_test = get_data(test_loader)
-        # y_mean = y_train.mean(dim=0, keepdim=True)
-        # print("y_mean:", y_mean)
-        # y_train = y_train - y_mean   # (1, C)
+
     else:
         X_train, y_train = train_loader
         X_test, y_test = test_loader
@@ -301,7 +263,6 @@ def rfm_gaussian(train_loader, test_loader,
 
     n, d = X_train.shape
 
-    # Move once to GPU
     X_train = X_train.to(dev)
     X_test = X_test.to(dev)
     y_train = y_train.to(dev)
@@ -319,7 +280,6 @@ def rfm_gaussian(train_loader, test_loader,
 
     kernel_acc = 0.0
 
-    # Precompute normalized test once
     Xh_test = normalize(X_test)
 
     for i in range(iters):
@@ -364,11 +324,6 @@ def rfm_gaussian(train_loader, test_loader,
         ).astype('float32')
 
         M = torch.from_numpy(M2).to(dev)
-
-        # Checking normalization.
-        # M / (M.max() + 1e-30)
-
-
         Ms.append(M.detach().cpu().numpy().copy())
         if name is not None:
             hickle.dump(M.detach().cpu().numpy(), 'saved_Ms/M_' + name + '_' + str(i) + '.h')

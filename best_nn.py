@@ -9,20 +9,8 @@ import dataset
 import random
 import numpy as np
 import argparse
+from wrn import wrn_28_10
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--MC', action='store_true', default=False)
-parser.add_argument('--DATASET', type=str, default='qmnist')
-parser.add_argument('--CNN', action='store_true', default=False)
-args = parser.parse_args()
-
-mc = args.MC
-Dataset = args.DATASET
-cnn = args.CNN
-
-# -------------------------
-# Model
-# -------------------------
 class FCNN2(nn.Module):
     """
     depth = number of Linear layers INCLUDING output layer.
@@ -53,43 +41,34 @@ class FCNN2(nn.Module):
             x = x.view(x.size(0), -1)
         return self.net(x)
 
-# LeNet
 class LeNet(nn.Module):
     def __init__(self, num_classes=10):
         super(LeNet, self).__init__()
-        # Convolutional layers
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, stride=1, padding=2)
+        
         self.conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1)
-
-        # Fully connected layers
         self.fc1 = nn.Linear(16 * 5 * 5, 120)  # after conv/pool, feature map size is 5x5
+        # self.fc1 = nn.Linear(16 * 6 * 6, 120)  # after conv/pool, feature map size is 5x5
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, num_classes)
 
     def forward(self, x):
-        # First conv + pool
         if (x.ndim==3):
             x=x.unsqueeze(0)
         x = F.relu(self.conv1(x))
         x = F.max_pool2d(x, 2)
 
-        # Second conv + pool
         x = F.relu(self.conv2(x))
         x = F.max_pool2d(x, 2)
 
-        # Flatten
         x = x.view(x.size(0), -1)
 
-        # Fully connected layers
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)  # logits
+        x = self.fc3(x)
 
         return x
 
-# -------------------------
-# Helpers
-# -------------------------
 def seed_all(seed: int = 42):
     random.seed(seed)
     np.random.seed(seed)
@@ -97,10 +76,8 @@ def seed_all(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
 
 def onehot_to_index(y: torch.Tensor) -> torch.Tensor:
-    # y: (B,2) -> (B,)
     return y.argmax(dim=1).long()
 
-# Only for LeNet
 def make_scheduler(
     optimizer,
     scheduler_name: str = "plateau",
@@ -152,10 +129,22 @@ def infer_input_dim(train_loader, device: torch.device) -> int:
     x = x.to(device)
     return x.view(x.size(0), -1).shape[1]
 
+def prepare_cnn_input(x):
+    if x.ndim == 4:
+        return x
 
-# -------------------------
-# Train / Eval
-# -------------------------
+    if x.ndim == 3:
+        return x.unsqueeze(1)
+
+    if x.ndim == 2:
+        if x.shape[1] == 28 * 28:
+            return x.view(x.size(0), 1, 28, 28)
+
+        if x.shape[1] == 3 * 32 * 32:
+            return x.view(x.size(0), 3, 32, 32)
+
+    raise ValueError(f"Cannot infer CNN image shape from {tuple(x.shape)}")
+
 def train_one_epoch(model, loader, optimizer, device,cnn=False) -> Dict[str, float]:
     model.train()
     total_loss, total_acc, n = 0.0, 0.0, 0
@@ -168,15 +157,13 @@ def train_one_epoch(model, loader, optimizer, device,cnn=False) -> Dict[str, flo
         if cnn == False:
             logits = model(x) 
         else:
-            x = x.reshape(x.size(0), 1, 28, 28) # add channel dim for CNN
-            logits = model(x) # add channel dim for CNN    
-        # print("Logits shape:", logits.shape)
-        if y.ndim >= 2:                  # (B,2)
+            x = prepare_cnn_input(x)
+            logits = model(x)
+        if y.ndim >= 2:                 
             y_idx = onehot_to_index(y)
         else:
             y_idx = y
-            y_idx = y_idx.long()   # or y_idx = y.long()                       # (B,)
-        
+            y_idx = y_idx.long()
         
         loss = F.cross_entropy(logits, y_idx)
         loss.backward()
@@ -201,9 +188,8 @@ def evaluate(model, loader, device,cnn=False) -> Dict[str, float]:
         if cnn == False:
             logits = model(x) 
         else:
-            x = x.reshape(x.size(0), 1, 28, 28) # add channel dim for CNN
-            logits = model(x) # add channel dim for CNN    
-        # print("Logits shape:", logits.shape)
+            x = prepare_cnn_input(x)
+            logits = model(x)
         if y.ndim >= 2:                  # (B,2)
             y_idx = onehot_to_index(y)
         else:
@@ -219,9 +205,6 @@ def evaluate(model, loader, device,cnn=False) -> Dict[str, float]:
     return {"loss": total_loss / n, "acc": total_acc / n}
 
 
-# -------------------------
-# Hyperparams + Optimizer
-# -------------------------
 @dataclass
 class HParams:
     depth: int
@@ -235,7 +218,6 @@ class HParams:
     seed: int = 42
 
 def make_sgd(model: nn.Module, lr: float, weight_decay: float, momentum: float, nesterov: bool):
-    # For SGD, weight_decay is true L2 regularization
     return torch.optim.SGD(
         model.parameters(),
         lr=lr,
@@ -245,9 +227,6 @@ def make_sgd(model: nn.Module, lr: float, weight_decay: float, momentum: float, 
     )
 
 
-# -------------------------
-# Logging
-# -------------------------
 def append_jsonl(path: str, obj: Dict[str, Any]):
     with open(path, "a") as f:
         f.write(json.dumps(obj) + "\n")
@@ -269,20 +248,17 @@ def sweep_fcnn_sgd(
     val_loader,
     num_classes,
     out_dir: str = "./fcnn_sweep_sgd_bin_w_",
-    # depths=(2, 3, 4, 5),
-    depths=(4,),
-    # widths=(64, 128, 256),
-    widths=(256,),
-    # weight_decays=(1e-2, 1e-3, 1e-4),
-    weight_decays=(1e-4,),
-    # lrs=(0.1, 0.03, 0.01),
-    lrs=(0.03,),
+    depths=(2, 3, 4, 5),
+    widths=(64, 128, 256),
+    weight_decays=(1e-2, 1e-3, 1e-4),
+    lrs=(0.1, 0.03, 0.01),
     epochs: int = 200,
     momentum: float = 0.9,
     nesterov: bool = True,
     dropout: float = 0.0,
     seed: int = 42,
     cnn: bool = False,
+    wrn: bool = False,
     scheduler_name: str = "plateau",
     scheduler_factor: float = 0.5,
     scheduler_patience: int = 3,
@@ -331,9 +307,32 @@ def sweep_fcnn_sgd(
                     )
 
                     print("Running training again for class")
-                    seed_all(hp.seed)
+                    torch.manual_seed(hp.seed)
+                    torch.cuda.manual_seed_all(hp.seed)
 
-                    if not cnn:
+                    if wrn:
+                        if input_dim == 28 * 28:
+                            in_channels = 1
+                        elif input_dim == 3 * 32 * 32:
+                            in_channels = 3
+                        else:
+                            raise ValueError(
+                                f"Unsupported WRN input dimension: {input_dim}"
+                            )
+
+                        model = wrn_28_10(
+                            in_channels=in_channels,
+                            num_classes=num_classes,
+                            drop_rate=hp.dropout
+                        ).to(device)
+
+                        model_name = "WRN-28-10"
+
+                    elif cnn:
+                        model = LeNet(num_classes=num_classes).to(device)
+                        model_name = "LeNet"
+
+                    else:
                         model = FCNN2(
                             input_dim=input_dim,
                             width=hp.width,
@@ -341,10 +340,8 @@ def sweep_fcnn_sgd(
                             dropout=hp.dropout,
                             num_classes=num_classes,
                         ).to(device)
+
                         model_name = "FCNN2"
-                    else:
-                        model = LeNet(num_classes=num_classes).to(device)
-                        model_name = "LeNet"
 
                     optimizer = make_sgd(
                         model,
@@ -353,16 +350,6 @@ def sweep_fcnn_sgd(
                         hp.momentum,
                         hp.nesterov,
                     )
-
-# No schheduler for NIPS project
-                    # scheduler = make_scheduler(
-                    #     optimizer,
-                    #     scheduler_name=scheduler_name,
-                    #     epochs=hp.epochs,
-                    #     factor=scheduler_factor,
-                    #     patience=scheduler_patience,
-                    #     min_lr=min_lr,
-                    # )
 
                     t0 = time.time()
 
@@ -374,8 +361,17 @@ def sweep_fcnn_sgd(
                     run_best_state = None
 
                     for epoch in range(1, hp.epochs + 1):
-                        tr = train_one_epoch(model, train_loader, optimizer, device, cnn=cnn)
-                        va = evaluate(model, val_loader, device, cnn=cnn)
+                        use_cnn_input = cnn or wrn
+
+                        tr = train_one_epoch(
+                            model, train_loader, optimizer, device,
+                            cnn=use_cnn_input
+                        )
+
+                        va = evaluate(
+                            model, val_loader, device,
+                            cnn=use_cnn_input
+                        )
 
                         current_lr = optimizer.param_groups[0]["lr"]
                         current_lr = hp.lr
@@ -438,17 +434,8 @@ def sweep_fcnn_sgd(
                                 "best_val_acc": best_val_acc,
                                 "best_val_loss": best_val_loss,
                                 "best_epoch": best_epoch,
-                                # "scheduler_name": scheduler_name,
-                                # "scheduler_factor": scheduler_factor,
-                                # "scheduler_patience": scheduler_patience,
                                 "min_lr": min_lr,
                             }, best_path)
-
-                        # if scheduler is not None:
-                        #     if scheduler_name.lower() == "plateau":
-                        #         scheduler.step(va["loss"])
-                        #     else:
-                        #         scheduler.step()
 
                     dt = time.time() - t0
 
@@ -471,9 +458,6 @@ def sweep_fcnn_sgd(
                             "best_val_loss": run_best_val_loss,
                             "best_train_acc": run_best_train_acc,
                             "best_train_loss": run_best_train_loss,
-                            # "scheduler_name": scheduler_name,
-                            # "scheduler_factor": scheduler_factor,
-                            # "scheduler_patience": scheduler_patience,
                             "min_lr": min_lr,
                         }, run_ckpt_path)
 
@@ -492,9 +476,6 @@ def sweep_fcnn_sgd(
                         "momentum": hp.momentum,
                         "nesterov": hp.nesterov,
                         "dropout": hp.dropout,
-                        # "scheduler_name": scheduler_name,
-                        # "scheduler_factor": scheduler_factor,
-                        # "scheduler_patience": scheduler_patience,
                         "min_lr": min_lr,
                         "best_epoch": run_best_epoch,
                         "best_val_acc": run_best_val_acc,
@@ -533,12 +514,26 @@ def sweep_fcnn_sgd(
 
     return best_overall
 
-# -------------------------
-# Usage
-# -------------------------
-# You already have:
+
 if __name__ == "__main__":
-    # trainloader, valloader = load_fmnist()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--MC', action='store_true', default=False)
+    parser.add_argument('--DATASET', type=str, default='qmnist')
+    parser.add_argument('--CNN', action='store_true', default=False)
+    parser.add_argument('--WRN', action='store_true', default=False)
+    parser.add_argument('--SEED', type=int, default=42)
+    
+    args = parser.parse_args()
+
+    mc = args.MC
+    Dataset = args.DATASET
+    cnn = args.CNN
+    wrn = args.WRN
+    seed = args.SEED
+
+    # seed_all(seed)
+
+    print(f"Using seed: {seed}")
 
     if mc == True or Dataset in ["bank"]:
         print("Running multiclass sweep...")
@@ -547,40 +542,29 @@ if __name__ == "__main__":
 
     if mc == False and Dataset != "bank":
         print("Running per-class pairwise sweep...")
-        classes1 = [0,1,2,3,4,5,6,7,8]
-        classes2 = [1,2,3,4,5,6,7,8,9] 
-
+        classes1 = [5]
+        classes2 = [8]
 
     global trainloader
     global valloader
     global testloader
 
     for cl1 in classes1:
-        # for cl2 in range(cl1+1, len(classes2)+1):
-        for cl2 in range(9,10):
+        for cl2 in classes2:
+
             classes = (cl1,cl2)
 
             if Dataset == "svhn":
 
-                def load_dataset_svhn(NUM_CLASSES=2):
-
-                    return dataset.get_svhn(svhn_class=NUM_CLASSES)
-
-                trainloader, valloader, testloader = load_dataset_svhn(10)
-
-                def load_dataset_svhn(classes):
-
-                    return dataset.get_svhn(classes = classes)
-
-                trainloader, valloader, testloader = load_dataset_svhn(classes=(cl1,cl2))
+                trainloader, valloader, testloader = dataset.get_svhn(
+                    classes=classes,
+                    multiclass=mc,
+                )
 
                 print("I am svhn")
 
             elif Dataset == "fmnist":
 
-                #for two class fmnist
-                # def ld_fmnist(class1,class2):
-                # For 10-class fmnist
                 def ld_fmnist():
 
                     return dataset.load_fmnist(classes=(cl1,cl2) , which_mnist='fmnist', multiclass = mc)
@@ -588,8 +572,6 @@ if __name__ == "__main__":
                 trainloader, valloader, testloader = ld_fmnist()
 
                 print("I am FMNIST")
-
-                # print("Loaded FMNIST10 dataset")
 
             elif Dataset == "qmnist":
                 def ld_fmnist():
@@ -625,6 +607,10 @@ if __name__ == "__main__":
                 valloader = testloader
 
                 print("I am Bank")
+            elif Dataset == "cifar10":
+                def ld_cifar10():
+                    return dataset.get_cifar(classes=(cl1,cl2), multiclass = mc)
+                trainloader, valloader, testloader = ld_cifar10()
             for x, y in trainloader:
                 print("Batch x shape:", x.shape)
                 print("Batch y shape:", y.shape)
@@ -635,19 +621,48 @@ if __name__ == "__main__":
                 num_classes = 10
             print("Number of classes:", num_classes)
 
-            if cnn == False:
+            if wrn:
                 if mc == False:
-                    best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_per_class/fcnn_sweep_sgd_{Dataset}_{classes}",epochs=200)
+                    best = sweep_fcnn_sgd(
+                        trainloader,
+                        valloader,
+                        num_classes=num_classes,
+                        out_dir=f"./WRN_{Dataset}_per_class/wrn_28_10_{Dataset}_{classes}/seed_{seed}",
+                        depths=(1,),
+                        widths=(1,),
+                        weight_decays=(1e-2, 1e-3, 1e-4),
+                        lrs=(0.1, 0.03, 0.01),
+                        epochs=50,
+                        wrn=True,
+                        seed=seed
+                    )
                 else:
-                    best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_mc/fcnn_sweep_sgd_{Dataset}_mc",epochs=200)
+                    best = sweep_fcnn_sgd(
+                        trainloader,
+                        valloader,
+                        num_classes=num_classes,
+                        out_dir=f"./WRN_{Dataset}_mc/wrn_28_10_{Dataset}_mc/seed_{seed}",
+                        depths=(1,),
+                        widths=(1,),
+                        weight_decays=(1e-2, 1e-3, 1e-4),
+                        lrs=(0.1, 0.03, 0.01),
+                        epochs=50,
+                        wrn=True,
+                        seed=seed
+                    )
+            elif cnn == False:
+                if mc == False:
+                    best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_per_class/fcnn_sweep_sgd_{Dataset}_{classes}",epochs=200, seed=seed)
+                else:
+                    best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_mc/fcnn_sweep_sgd_{Dataset}_mc/seed_{seed}",epochs=200, seed=seed)
             else:
                 if mc == False:
                     best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_lenet_{Dataset}_per_class/fcnn_lenet_sweep_sgd_{Dataset}_{classes}", depths=(1,),
     widths=(1,),
     weight_decays=(1e-2,1e-3,1e-4),
-    lrs=(0.1,0.03,0.01),epochs=50,cnn = True)
+    lrs=(0.1,0.03,0.01),epochs=50,cnn = True, seed=seed)
                 else:
-                    best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_lenet_{Dataset}_mc/fcnn_lenet_sweep_sgd_{Dataset}_mc",    depths=(1,),
+                    best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_lenet_{Dataset}_mc/fcnn_lenet_sweep_sgd_{Dataset}_mc/seed_{seed}",    depths=(1,),
     widths=(1,),
     weight_decays=(1e-2,1e-3,1e-4),
-    lrs=(0.1,0.03,0.01),epochs=50,cnn = True)
+    lrs=(0.1,0.03,0.01),epochs=50,cnn = True, seed=seed)

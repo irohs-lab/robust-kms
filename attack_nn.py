@@ -1,5 +1,3 @@
-# For multi-class
-
 import dataset
 import os
 import json
@@ -12,7 +10,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from best_nn import FCNN2  # keep as before
+from best_nn import FCNN2
+from wrn import WideResNet, wrn_28_10
 from torchkernels.feature_maps import LaplacianRFF, GaussianRFF
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -52,16 +51,33 @@ def extract_classes_from_path(path):
         raise ValueError(f"Could not extract classes from path: {path}")
     return (int(m.group(1)), int(m.group(2)))
 
-
 class LeNet(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, in_channels=1, input_size=28):
         super().__init__()
-        # self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, stride=1, padding=2)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=6, kernel_size=5, stride=1, padding=2)
-        self.conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1)
 
-        # self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc1 = nn.Linear(16 * 6 * 6, 120)
+        self.conv1 = nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=6,
+            kernel_size=5,
+            stride=1,
+            padding=2
+        )
+
+        self.conv2 = nn.Conv2d(
+            in_channels=6,
+            out_channels=16,
+            kernel_size=5,
+            stride=1
+        )
+
+        if input_size == 28:
+            fc_in = 16 * 5 * 5
+        elif input_size == 32:
+            fc_in = 16 * 6 * 6
+        else:
+            raise ValueError(f"Unsupported input_size: {input_size}")
+
+        self.fc1 = nn.Linear(fc_in, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, num_classes)
 
@@ -79,8 +95,8 @@ class LeNet(nn.Module):
 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        return self.fc3(x)
 
+        return self.fc3(x)
 
 def select_kernel(
     input_dim,
@@ -133,13 +149,18 @@ class RFFClassifier(nn.Module):
             x = x.view(x.size(0), -1)
         return self.phi(x) @ self.U
 
-
 def forward_model(net, x):
-    if isinstance(net, LeNet):
-        # x = x.view(x.size(0), 1, 28, 28)
-        x = x.view(x.size(0), 3, 32, 32)
+    if isinstance(net, (LeNet, WideResNet)):
+        if x.ndim == 2:
+            if x.shape[1] == 28 * 28:
+                x = x.view(x.size(0), 1, 28, 28)
+            elif x.shape[1] == 3 * 32 * 32:
+                x = x.view(x.size(0), 3, 32, 32)
+            else:
+                raise ValueError(
+                    f"Unsupported flattened image shape: {x.shape}"
+                )
     return net(x)
-
 
 parser = argparse.ArgumentParser(description="Attack FCNN / LeNet / RFF models")
 
@@ -159,7 +180,7 @@ parser.add_argument("--MC", action="store_true",
                     help="Use multiclass setting")
 
 parser.add_argument("--MODEL_TYPE", type=str, required=True,
-                    choices=["fcnn", "lenet", "rff"])
+                    choices=["fcnn", "lenet", "rff", "wrn"])
 
 parser.add_argument("--RFF_KERNEL", type=str, default=None,
                     choices=["Laplace", "gaussian", "Gaussian", "laplace", None])
@@ -175,6 +196,9 @@ parser.add_argument("--JSON_PATH", type=str, default=None,
 
 parser.add_argument("--CKPT_PATH", type=str, default=None,
                     help="Optional direct checkpoint path")
+
+parser.add_argument("--OUTPUT_PATH", type=str, default=None,
+                    help="Optional exact JSON output path")
 
 parser.add_argument("--SEED", type=int, default=42)
 
@@ -206,6 +230,7 @@ num_features = args.NUM_FEATURES
 
 JSON_PATH = args.JSON_PATH
 CKPT_PATH = args.CKPT_PATH
+OUTPUT_PATH = args.OUTPUT_PATH
 
 trn_type = args.TRN_TYPE
 
@@ -219,7 +244,17 @@ if adv_lenet and model_type == "lenet":
 else:
     adv_folder = None
 
-
+if CKPT_PATH is None and model_type == "wrn":
+    if mc:
+        CKPT_PATH = (
+            f"/janaki/backup/users/student/rs/rahulky/water/retrain/"
+            f"WRN_{Dataset}_mc/"
+            f"wrn_28_10_{Dataset}_mc/"
+            f"seed_{SEED}/"
+            f"best_model.pt"
+        )
+    else:
+        CKPT_PATH = None
 if CKPT_PATH is None and model_type == "lenet":
     if adv_lenet:
         if mc:
@@ -267,12 +302,6 @@ def load_summary():
             ]
         }
 
-    # if model_type == "fcnn":
-    #     if not mc:
-    #         path = f"./FCNN_nn_{Dataset}_per_class/fcnn_sgd_bin_best_{Dataset}_class_pair_runs.json"
-    #     else:
-    #         path = f"./FCNN_nn_{Dataset}_mc/fcnn_sgd_bin_best_{Dataset}_mc_runs.json"
-# Directory where attack_nn.py lives
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
     if model_type == "fcnn":
@@ -287,9 +316,12 @@ def load_summary():
             path = f"./FCNN_lenet_{Dataset}_per_class/lenet_{Dataset}_per_class.json"
         else:
             path = f"./FCNN_lenet_{Dataset}_mc/fcnn_sgd_bin_best_{Dataset}_mc_runs.json"
-    # elif model_type == "rff":
-    #     raise ValueError("For RFF, pass --CKPT_PATH or --JSON_PATH.")
 
+    elif model_type == "wrn":
+        if not mc:
+            path = f"./WRN_{Dataset}_per_class/wrn_{Dataset}_per_class.json"
+        else:
+            path = f"./WRN_{Dataset}_mc/wrn_28_10_{Dataset}_mc_runs.json"
     elif model_type == "rff":
         pass
     else:
@@ -303,30 +335,18 @@ summary = load_summary()
 
 print(summary)
 
-# breakpoint()
-
-
-        # if ce or adv_ce, rewrite paths to point into subfolder
 if model_type == "rff" and trn_type in ["ce", "adv_ce"] and not mc:
     json_dir = os.path.dirname(os.path.abspath(JSON_PATH))
     for entry in summary.get("results", []):
         original_path = entry["path"]
-        # get just the filename e.g. qmnist_(0,1)_rff_best.pt
         fname = os.path.basename(original_path)
-        # build new path inside ce/ or adv_ce/
         entry["path"] = os.path.join(
             json_dir, trn_type, fname
         )
 
-# -------------------------
-# Data loading
-# -------------------------
 def load_dataset_svhn(mc):
 
     return dataset.get_svhn(multiclass=mc)
-
-                # trainloader, valloader, testloader = load_dataset_svhn()
-
 
 def get_loaders(Dataset, mc, classes):
     if Dataset == "svhn":
@@ -375,11 +395,7 @@ def spsa_fast(loss_fn, x, y, epsilon=0.03, eta=0.01, lr=0.01,
     for _ in range(iterations):
         print(_,"I am rademacher", flush=True)
 
-        # if norm == "Linf":
         v = torch.empty(sample_size, B, D, device = x.device).bernoulli_(0.5, generator=generator).mul_(2).sub_(1)
-        # else:
-        #     v = torch.randn(sample_size, B, D, device=x.device)
-        #     v = v / v.norm(p=2, dim=2, keepdim=True).clamp_min(1e-12)
 
         x_plus  = (x_adv.unsqueeze(0) + eta * v).clamp(0, 1)
         x_minus = (x_adv.unsqueeze(0) - eta * v).clamp(0, 1)
@@ -417,38 +433,17 @@ def spsa_fast(loss_fn, x, y, epsilon=0.03, eta=0.01, lr=0.01,
 
     return x_adv
 
-# -------------------------
-# Main loop
-# -------------------------
 for entry in summary.get("results", []):
     try:
         exp_name = entry["experiment"]
         exp_path = entry["path"]
         print("Experiment Path:", exp_path)
-        # breakpoint()
         if model_type == "fcnn":
             if not mc:
                 c1, c2 = extract_classes_from_path(entry["path"])
                 classes = (c1, c2)
             else:
                 classes = (0, 1)
-            # if not mc:
-            #     classes_str = entry["classes"]
-
-            # best_run = entry.get("best_run", {})
-
-            # if not mc:
-            #     c1, c2 = int(classes_str[0]), int(classes_str[1])
-            #     # if Dataset == "fmnist":
-            #     #     if (c1 == 7 and c2 == 9) or (c1 == 8 and c2 == 9):
-            #     #         classes = (c2, c1)
-            #     #     else:
-            #     #         classes = (c1, c2)
-            #     # else:
-            #     #     classes = (c1, c2)
-            #     classes = (c1, c2)
-            # else:
-            #     classes = (0, 1)
         else:
             best_run = entry.get("best_run", {})
 
@@ -458,21 +453,8 @@ for entry in summary.get("results", []):
             else:
                 classes = (0, 1)
 
-        # input_dim = int(best_run.get("input_dim", 784))
-        # width = int(best_run.get("width", 64))
-        # depth = int(best_run.get("depth", 3))
-        # weight_decay = float(best_run.get("weight_decay", 0.0))
-        # lr = float(best_run.get("lr", 0.0))
-        # epoch = int(best_run.get("best_epoch", 0))
 
         trainloader, valloader, testloader = get_loaders(Dataset, mc, classes)
-
-        # if "ckpt_path" in entry:
-        #     ckpt_path = entry["ckpt_path"]
-        # else:
-        #     if model_type == "rff":
-        #         raise ValueError("RFF requires explicit --CKPT_PATH")
-        #     ckpt_path = os.path.join(exp_path, "best_model.pt")
 
         ckpt_path = entry["path"]
 
@@ -481,9 +463,6 @@ for entry in summary.get("results", []):
         if not os.path.isfile(ckpt_path):
             raise FileNotFoundError(f"Missing checkpoint at: {ckpt_path}")
 
-        # -------------------------
-        # Build model
-        # -------------------------
         if model_type == "fcnn":
             ckpt1 = torch.load(ckpt_path, map_location=device)
 
@@ -503,44 +482,94 @@ for entry in summary.get("results", []):
             model.load_state_dict(ckpt1["state_dict"])
 
         elif model_type == "lenet":
-            if not mc:
-                model = LeNet(num_classes=2).to(device)
+
+            if Dataset in ["fmnist", "kmnist", "qmnist", "emnist"]:
+                in_channels = 1
+                input_size = 28
+
+            elif Dataset in ["svhn", "cifar10"]:
+                in_channels = 3
+                input_size = 32
+
             else:
-                model = LeNet(num_classes=10).to(device)
+                raise ValueError(
+                    f"Unsupported dataset for LeNet: {Dataset}"
+                )
 
-            ckpt1 = torch.load(ckpt_path, map_location=device)
-            model.load_state_dict(ckpt1["state_dict"])
+            num_classes = 10 if mc else 2
 
-            input_dim= 784
-            width= 64
-            depth= 3
+            model = LeNet(
+                num_classes=num_classes,
+                in_channels=in_channels,
+                input_size=input_size
+            ).to(device)
 
-        # elif model_type == "rff":
-        #     ckpt1 = torch.load(ckpt_path, map_location=device)
-        #     params = ckpt1["phi_params"]
+            ckpt1 = torch.load(
+                ckpt_path,
+                map_location=device
+            )
 
-        #     input_dim=params["input_dim"]
-        #     num_features=params["num_features"]
-        #     kernel_type=params["kernel_type"]
-        #     length_scale=params["length_scale"]
-        #     seed=params["seed"]
-        #     width = 64
-        #     depth = 3
+            model.load_state_dict(
+                ckpt1["state_dict"]
+            )
 
-        #     print("Input Dim:", input_dim, "num_features:", num_features,
-        #     "kernel_type:", kernel_type, "length_scale:",length_scale, "seed:", seed)
+            input_dim = (
+                28 * 28
+                if input_size == 28
+                else 3 * 32 * 32
+            )
 
-        #     phi = select_kernel(
-        #         input_dim=params["input_dim"],
-        #         num_features=params["num_features"],
-        #         kernel_type=params["kernel_type"],
-        #         length_scale=params["length_scale"],
-        #         seed=params["seed"],
-        #         device=device,
-        #     )
+            width = 64
+            depth = 3
+        elif model_type == "wrn":
 
-        #     U = ckpt1["U"].to(device)
-        #     model = RFFClassifier(phi, U).to(device)
+            ckpt1 = torch.load(
+                ckpt_path,
+                map_location=device
+            )
+
+            # Determine input channels from dataset
+            if Dataset in ["fmnist", "kmnist", "qmnist", "emnist"]:
+                in_channels = 1
+
+            elif Dataset in ["svhn", "cifar10"]:
+                in_channels = 3
+
+            else:
+                raise ValueError(
+                    f"Unsupported dataset for WRN: {Dataset}"
+                )
+
+            num_classes = int(
+                ckpt1.get(
+                    "num_classes",
+                    10 if mc else 2
+                )
+            )
+
+            hp = ckpt1.get("hparams", {})
+            drop_rate = float(
+                hp.get("dropout", 0.0)
+            )
+
+            model = wrn_28_10(
+                in_channels=in_channels,
+                num_classes=num_classes,
+                drop_rate=drop_rate
+            ).to(device)
+
+            model.load_state_dict(
+                ckpt1["state_dict"]
+            )
+
+            input_dim = (
+                28 * 28
+                if in_channels == 1
+                else 3 * 32 * 32
+            )
+
+            width = 10
+            depth = 28
 
         elif model_type == "rff":
 
@@ -550,10 +579,7 @@ for entry in summary.get("results", []):
             print(f"X shape: {X_sample.shape}")
             print(f"y sample: {y_sample[:5]}")
             print(f"classes: {torch.unique(torch.argmax(y_sample, dim=-1))}")
-            # Fingerprint the actual data
             print(f"X first sample first 10: {X_sample[0].flatten()[:10].tolist()}")
-
-            # breakpoint()
 
             ckpt1 = torch.load(ckpt_path, map_location=device)
             params = ckpt1["phi_params"]
@@ -579,17 +605,8 @@ for entry in summary.get("results", []):
                     device=device,
                 )
 
-                # Load the exact random weights used during training — ignore re-seeding
-                # phi.load_state_dict({
-                #     k: v.to(device)
-                #     for k, v in ckpt1["phi_state_dict"].items()   # ← add this
-                # })
-                # phi.eval()  # ← add this
-
                 probe = torch.zeros(1, params["input_dim"], device=device)
                 print("phi probe:", phi(probe)[:, :5])  # first 5 features
-
-                # breakpoint()
 
                 clf = nn.Linear(num_features, num_classes).to(device)
                 clf.load_state_dict({
@@ -615,7 +632,6 @@ for entry in summary.get("results", []):
 
         model.eval()
 
-        # DEBUG: check clean accuracy first
         def get_clean_acc(net, loader):
             correct = 0
             total = 0
@@ -632,9 +648,6 @@ for entry in summary.get("results", []):
         print(f"[DEBUG] Clean accuracy (no attack): {clean_acc:.2f}%")
         print(f"[DEBUG] Expected: should be high (>80%) before any attack")
 
-        # -------------------------
-        # Attacks
-        # -------------------------
         def pgd_attack(net, X, y, epsilon, alpha, num_iters, loss_fn='mse', seed = None):
             net.eval()
             X_nat = X.detach().to(device)
@@ -646,7 +659,6 @@ for entry in summary.get("results", []):
             X_adv = X_nat.clone().detach().to(device)
 
             if pgd is True and AA_NORM == "Linf":
-                # print("We are in the PGD l-inf attack")
                 print("We are in the PGD l-inf attack")
                 print(X_adv.max(), X_adv.min())
 
@@ -657,26 +669,6 @@ for entry in summary.get("results", []):
                 adversary.attacks_to_run = ['apgd-ce']
                 X_adv = adversary.run_standard_evaluation(X_adv, y, bs=X_adv.shape[0])
                 return X_adv.detach()
-                # for _ in range(num_iters):
-                #     X_adv.requires_grad_(True)
-                #     if X_adv.grad is not None:
-                #         X_adv.grad.zero_()
-                #     with torch.enable_grad():
-                #         out = forward_model(net, X_adv)
-                #         if loss_fn == 'mse':
-                #             loss = F.mse_loss(out, y)
-                #         else:
-                #             loss = F.cross_entropy(out, y)
-                #         net.zero_grad()
-                #         loss.backward()
-
-                #     with torch.no_grad():
-                #         X_adv = X_adv + alpha * X_adv.grad.sign()
-                #         X_adv = torch.max(torch.min(X_adv, X_nat + epsilon), X_nat - epsilon)
-                #         X_adv = torch.clamp(X_adv, 0.0, 1.0)
-
-                # return X_adv.detach()
-
             elif pgd is True and AA_NORM == "L2":
                 print("We are in the PGD l-2 attack")
                 print(X_adv.max(), X_adv.min())
@@ -692,21 +684,8 @@ for entry in summary.get("results", []):
             elif pgd is False and bb_attack == "spsa":
                 print("We are in the SPSA black-box attack")
                 loss_fn_local = lambda xb, yb: F.cross_entropy(forward_model(net, xb), yb, reduction="none")
-                # spsa_sample_size = 500
                 spsa_sample_size =16
-                # if epsilon > 0:
-                #     X_adv = spsa(
-                #         loss_fn_local,
-                #         X_adv,
-                #         y,
-                #         epsilon=epsilon,
-                #         eta=0.01,
-                #         lr=alpha,
-                #         iterations=num_iters,
-                #         sample_size=spsa_sample_size,
-                #         norm=AA_NORM
-                #     )
-                # return X_adv.detach()
+
                 if epsilon > 0:
                     print("Running SPSA attack with epsilon =", epsilon)
                     X_adv = spsa_fast(
@@ -722,20 +701,6 @@ for entry in summary.get("results", []):
                         seed=seed
                     )
                 return X_adv.detach()
-
-        # def get_adv_acc(net, loader, epsilon=4/255, alpha=1/255, num_iters=15, loss_fn='mse'):
-        #     net.eval()
-        #     correct = 0
-        #     total = 0
-        #     for X, y in loader:
-        #         X_adv = pgd_attack(net, X, y, epsilon, alpha, num_iters, loss_fn)
-        #         with torch.no_grad():
-        #             preds = torch.argmax(forward_model(net, X_adv), dim=-1)
-        #             labels = torch.argmax(y.to(device), dim=-1)
-        #             correct += torch.sum(preds == labels).item()
-        #             total += X.size(0)
-
-        #     return 100.0 * correct / total
 
         def get_adv_acc(net, loader, epsilon=4/255, alpha=1/255, num_iters=15, loss_fn='mse'):
             """classification accuracy on PGD-generated inputs."""
@@ -758,35 +723,11 @@ for entry in summary.get("results", []):
                     correct += torch.sum(preds == labels).item()
                     total   += X.size(0)
                 print(f"Batch {batch_id} done | correct={correct} total={total}", flush=True)
-
-        #     for batch_id, (X, y) in enumerate(loader):
-        #         print(f"Batch {batch_id} | "
-        #   f"Allocated: {torch.cuda.memory_allocated()/1e9:.2f}GB | "
-        #   f"Cached: {torch.cuda.memory_reserved()/1e9:.2f}GB")
-        #         torch.cuda.empty_cache()   
-        #         X_adv = pgd_attack(
-        #                         net,
-        #                         X,
-        #                         y,
-        #                         epsilon,
-        #                         alpha,
-        #                         num_iters,
-        #                         loss_fn,
-        #                         seed=SEED + batch_id,
-        #                     )
-        #         # X_adv = pgd_attack(net, X, y, epsilon, alpha, num_iters, loss_fn)
-        #         with torch.no_grad():
-        #             preds = torch.argmax(forward_model(net, X_adv), dim=-1)
-        #             labels = torch.argmax(y.to(device), dim=-1)
-        #             correct += torch.sum(preds == labels).item()
-        #             total += X.size(0)
-
             return 100.0 * correct / total
 
         if AA_NORM == "Linf":
-            # epsilons = [0, 0.1, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0]
             if mc:
-                epsilons = [0, 0.1, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0, 32.0, 40.0, 55.0]
+                epsilons = [0, 0.1, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0, 32.0, 40.0, 55.0]
             else:
                 epsilons = [0, 0.1, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0]
         elif AA_NORM == "L2":
@@ -805,13 +746,6 @@ for entry in summary.get("results", []):
                 eps_float = j
 
             alpha = eps_float / 10
-
-            # Only for spsa debug.
-            # if eps_float < 4.0:
-            #     acc = get_adv_acc(model, testloader, eps_float, alpha, 150, 'cross_entropy')
-            # else:
-            #     alpha = min(eps_float / 20, 0.1)
-            #     acc = get_adv_acc(model, testloader, eps_float, alpha, 400, 'cross_entropy')
             acc = get_adv_acc(model, testloader, eps_float, alpha, 100, 'cross_entropy')
 
 
@@ -835,22 +769,16 @@ for entry in summary.get("results", []):
             elif model_type == "lenet":
                 base_dir = f"./FCNN_lenet_{Dataset}_{'mc' if mc else 'per_class'}"
                 suffix = "lenet"
-            # else:
-            #     base_dir = f"./rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}"
-            #     suffix = "rff"
+            elif model_type == "wrn":
+                base_dir = f"./WRN_{Dataset}_{'mc' if mc else 'per_class'}"
+                suffix = "wrn"
+
             else:
-                # New path
                 if trn_type == "square":
                     base_dir = f"./rff_code/rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}"
                 else:
                     base_dir = f"./rff_code/rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}/{trn_type}"
                 suffix = "rff"
-                # if trn_type == "square":
-                #     base_dir = f"./rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}"
-                # else:
-                #     base_dir = f"./rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}/{trn_type}"
-                # suffix = "rff"
-
             if AA_NORM == "Linf":
                 if not mc:
                     save_path = (
@@ -873,21 +801,16 @@ for entry in summary.get("results", []):
                         f"{base_dir}/seed_{SEED}/"
                         f"adv_accuracy_results_l2_{Dataset}_mc_{suffix}.json"
                     )
-
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-            with open(save_path, "w") as f:
-                json.dump(adv_results, f, indent=2)
+            if OUTPUT_PATH is None:
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                with open(save_path, "w") as f:
+                    json.dump(adv_results, f, indent=2)
 
         results_out.append({
             "experiment": exp_name,
             "path": exp_path,
             "classes": [c1, c2] if not mc else [0, 1],
-            # "hyperparams": {
-            #     "input_dim": input_dim,
-            #     "width": width,
-            #     "depth": depth,
-            # },
+
             "model_type": model_type,
             "pgd": adv_accs,
         })
@@ -904,20 +827,6 @@ out_obj = {
     "results": results_out,
     "errors": errors_out,
 }
-
-# if model_type == "fcnn":
-#     base_dir = f"./FCNN_nn_{Dataset}_{'mc' if mc else 'per_class'}"
-#     suffix = "nn"
-# elif model_type == "lenet":
-#     base_dir = f"./FCNN_lenet_{Dataset}_{'mc' if mc else 'per_class'}"
-#     suffix = "lenet"
-# else:
-#     if trn_type == "square":
-#         base_dir = f"./rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}"
-#     else:
-#         base_dir = f"./rff_{rff_kernel}_{Dataset}_{'mc' if mc else 'pairwise'}/{trn_type}"
-#     suffix = "rff"
-
 norm_name = AA_NORM.lower()
 
 if model_type == "rff":
@@ -926,12 +835,26 @@ if model_type == "rff":
     else:
         attack_prefix = f"PGD_result_{norm_name}_bb_sd_{params['seed']}_num_features_{num_features}"
     base_dir = "rff_code"
-else:  # fcnn or lenet
+else:
     if pgd is True:
         attack_prefix = f"PGD_result_{norm_name}"
     else:
         attack_prefix = f"PGD_result_{norm_name}_bb"
-    base_dir = f"./FCNN_nn_{Dataset}" if model_type == "fcnn" else f"./FCNN_lenet_{Dataset}"
+
+    if model_type == "fcnn":
+        base_dir = f"./FCNN_nn_{Dataset}"
+
+    elif model_type == "lenet":
+        base_dir = f"./FCNN_lenet_{Dataset}"
+
+    elif model_type == "wrn":
+        base_dir = f"./WRN_{Dataset}"
+
+    else:
+        raise ValueError(
+            f"Unsupported model_type: {model_type}"
+        )
+
     base_dir += "_mc" if mc else "_per_class"
 
 suffix = "rff" if model_type == "rff" else model_type
@@ -941,7 +864,9 @@ if not mc:
 else:
     task_suffix = f"{Dataset}_mc_{suffix}"
 
-if adv_lenet and model_type == "lenet":
+if OUTPUT_PATH is not None:
+    out_path = OUTPUT_PATH
+elif adv_lenet and model_type == "lenet":
     out_path = f"{base_dir}/{adv_folder}/seed_{SEED}/{attack_prefix}_{task_suffix}.json"
 else:
     out_path = f"{base_dir}/seed_{SEED}/{attack_prefix}_{task_suffix}.json"
@@ -954,49 +879,3 @@ with open(out_path, "w") as f:
 print(f"Saved PGD results to: {out_path}")
 if errors_out:
     print(f"WARNING: {len(errors_out)} experiments failed. See 'errors' in the output JSON.")
-
-# norm_name = AA_NORM.lower()
-
-# if model_type == "rff":
-#     if pgd is True:
-#         attack_prefix = f"PGD_result_{norm_name}_sd_{params['seed']}_num_features_{num_features}"
-#     else:
-#         attack_prefix = f"PGD_result_{norm_name}_bb_sd_{params['seed']}"
-# else:  # fcnn or lenet
-#     if pgd is True:
-#         attack_prefix = f"PGD_result_{norm_name}_"
-#     else:
-#         attack_prefix = f"PGD_result_{norm_name}_"
-
-# suffix = "rff" if model_type == "rff" else model_type
-
-# if not mc:
-#     task_suffix = f"{Dataset}_class_pair_{suffix}"
-# else:
-#     task_suffix = f"{Dataset}_mc_{suffix}"
-
-
-# base_dir = "rff_code"
-# if adv_lenet and model_type == "lenet":
-#     out_path = f"{base_dir}/{adv_folder}/seed_{SEED}/{attack_prefix}_{task_suffix}.json"
-# else:
-#     out_path = f"{base_dir}/seed_{SEED}/{attack_prefix}_{task_suffix}.json"
-
-# os.makedirs(os.path.dirname(out_path), exist_ok=True)
-
-# with open(out_path, "w") as f:
-#     json.dump(out_obj, f, indent=2)
-
-# print(f"Saved PGD results to: {out_path}")
-# if errors_out:
-#     print(f"WARNING: {len(errors_out)} experiments failed. See 'errors' in the output JSON.")
-
-# python -u attack_nn.py \
-#   --DATASET fmnist \
-#   --AA_norm Linf \
-#   --BB_attack spsa \
-#   --MC \
-#   --MODEL_TYPE lenet \
-#   --SEED 42 \
-#   --ADV_LENET  
-# SEED 42, 100, 120

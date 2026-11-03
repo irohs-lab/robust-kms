@@ -6,8 +6,13 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 from torchkernels.kernels.radial import laplacian, gaussian
+# from radial import laplacian
+# rfm import 
+from updated_rfm import *
+# Replace laplace_kernel_M with laplacian(X_train, X_test, bandwidth, Mt, False)
 
-
+import sys
+sys.path.append("/users/student/rs/rahulky/robust-rfms/nfa_src/src")
 import dataset
 
 import argparse
@@ -22,7 +27,7 @@ parser.add_argument(
     help='Only save lightweight metrics JSON (no full tensors).',
 )
 
-#Only to be uncommented while using fmnist or svhn class pair
+# Uncomment when not using celeba
 parser.add_argument('--class1', type=int, default =4, help='Number of class to use from fmnist dataset')
 parser.add_argument('--class2', type=int, default=2, help='Number of class to use from fmnist dataset')
 parser.add_argument('--dataset',type = str)
@@ -34,11 +39,8 @@ parser.add_argument('--mc', action = 'store_true')
 args = parser.parse_args()
 # os.makedirs("./svhn2", exist_ok=True)
 
-save_dir = f"./{args.dataset}2/{args.kernel}_{args.version}"
-if args.mc:
-    save_dir += "_mc"
-
-os.makedirs(save_dir, exist_ok=True)
+output_dir = f"./{args.dataset}2"
+os.makedirs(output_dir, exist_ok=True)
 
 global trainloader
 global valloader
@@ -46,26 +48,23 @@ global testloader
 
 if args.dataset == "svhn":
 
-    def load_dataset_svhn(NUM_CLASSES=2):
+    # def load_dataset_svhn(NUM_CLASSES=2):
+    def load_dataset_svhn():
 
-        return dataset.get_svhn(svhn_class=NUM_CLASSES)
+        return dataset.get_svhn(multiclass=True)
 
-    trainloader, valloader, testloader = load_dataset_svhn(10)
+    trainloader, valloader, testloader = load_dataset_svhn()
 
 
-    def load_dataset_svhn(classes):
+    # def load_dataset_svhn(classes):
 
-        return dataset.get_svhn(classes = classes)
+    #     return dataset.get_svhn(classes = classes)
 
-    trainloader, valloader, testloader = load_dataset_svhn(classes=(int(args.class1),int(args.class2)))
+    # trainloader, valloader, testloader = load_dataset_svhn(classes=(int(args.class1),int(args.class2)))
 
     print("I am svhn")
 
 elif args.dataset == "fmnist":
-
-    #for two class fmnist
-    # def ld_fmnist(class1,class2):
-    # For 10-class fmnist
     if args.mc == False:
         def ld_fmnist():
 
@@ -131,7 +130,26 @@ elif args.dataset == "bank":
     trainloader, testloader = ld_bank()
     print("I am Bank")
 
-from updated_rfm import *
+elif args.dataset == "cifar10":
+    if args.mc == False:
+        def ld_cifar10():
+            return dataset.get_cifar(classes=(int(args.class1),int(args.class2)) , multiclass = False)
+    else:
+        def ld_cifar10():
+            return dataset.get_cifar(classes=(int(args.class1),int(args.class2)) , multiclass = True)
+    
+    trainloader, valloader, testloader = ld_cifar10()
+    print("I am Cifar-10")
+
+# for x, y in trainloader:
+#     print(x.shape, y.shape)
+
+# def ld_celeba(Feature_IDX):
+#     return dataset.get_celeba(Feature_IDX)
+
+# trainloader, valloader, testloader = ld_celeba(args.Feature_IDX)
+
+
 
 if args.kernel == "laplacian":
     print("Using Laplacian Kernel")
@@ -148,8 +166,7 @@ if args.kernel == "laplacian":
     )
 
     print(f"For reg{args.reg} and L{args.L}\n Best iteration accuracy:", best_round_accuracy, "at iteration:", iteration, "base_kernel_acc:", kernel_acc)
-
-
+    # Previous direct-save behavior (kept for reference):
     payload = {
         "best_round_accuracy": best_round_accuracy,
         "iteration": iteration,
@@ -163,9 +180,9 @@ if args.kernel == "laplacian":
     }
     if args.metrics_only:
         if args.mc == False:
-            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
+            metrics_path = f"./{output_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
         else:
-            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
+            metrics_path = f"{output_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
 
         with open(metrics_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, indent=2))
@@ -183,13 +200,13 @@ if args.kernel == "laplacian":
         if args.mc == False:
             torch.save(
                 payload,
-                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
+                f"{output_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
                 pickle_protocol=4,
             )
         else:
             torch.save(
                 payload,
-                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
+                f"{output_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
                 pickle_protocol=4,
             )
 
@@ -210,7 +227,7 @@ elif args.kernel == "gaussian":
     )
 
     print(f"For reg{args.reg} and L{args.L}\n Best iteration accuracy:", best_round_accuracy, "at iteration:", iteration, "base_kernel_acc:", kernel_acc)
-
+    # Previous direct-save behavior (kept for reference):
     payload = {
         "best_round_accuracy": best_round_accuracy,
         "iteration": iteration,
@@ -224,9 +241,9 @@ elif args.kernel == "gaussian":
     }
     if args.metrics_only:
         if args.mc == False:
-            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
+            metrics_path = f"{output_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.json"
         else:
-            metrics_path = f"./{save_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
+            metrics_path = f"{output_dir}/metrics_{args.kernel}_{args.version}_{args.dataset}_L{args.L}_reg{args.reg}_mc.json"
         with open(metrics_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(payload, indent=2))
     else:
@@ -243,12 +260,12 @@ elif args.kernel == "gaussian":
         if args.mc == False:
             torch.save(
                 payload,
-                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
+                f"{output_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_{args.class1}_{args.class2}.pt",
                 pickle_protocol=4,
             )
         else:
             torch.save(
                 payload,
-                f"./{save_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
+                f"{output_dir}/{args.version}_results_{args.kernel}_{args.dataset}_L{args.L}_reg{args.reg}_mc.pt",
                 pickle_protocol=4,
             )
