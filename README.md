@@ -1,682 +1,274 @@
 # robust-kms
 This code accompanies the submission 'Adversarial Robustness of Kernel Machines: A Comprehensive Empirical Analysis' made to NeurIPS 2026.
 
-This repo consists of multiple models, and attacks precisely Fully Connected Neural Networks defined as **FCNN** in `best_nn.py`, Convolutional Neural Networks defined as **LeNet** in `best_nn.py`, **Kernel Ridge Regressors** defined in `updated_rfm.py`, **Recursive Feature Machines** defined in `updated_rfm.py`, and **Random Feature Classifiers** defined in `rff_training.py`. We will be using **RFC** for Random Feature Classifiers, **KRR** for Kernel Ridge Regressors, **RFM** for Recursive Feature Machines, **FCNN** for Fully Connected Neural Networks, and **LeNet** for CNNs. Only difference between **Kernel Ridge Regressors** and **Recursive Feature Machines** is the value of *iteration_idx* which is $0$ for **KRR's** and some $0 \ge value \le 5$, this 5 is the maximum number of iterations we wish to do, that can be changed, but we are doing for 5 iterations. 
+# Kernel and Neural Network Robustness Experiments
 
-We have three different types of attacks, one is **PGD $\ell_\infty$**, another is autoattack's apgd-ce for $\ell_2$ norm, and one more is black box attack namely **Simultaneous Perturbation Stochastic Approximation** attack(defined in `spsa_attack.py`).
+Train image classifiers and evaluate their robustness with L2 and Linf
+APGD-CE and SPSA attacks.
 
-We also have cafa attack for tabular dataset everything related to it is inside **cafa** folder.
+Supported model families:
 
-`dataset.py` contains the code for datasets used for training and attacks. You need to change the path at which the dataset needs to be stored, for that in `get_dataset_path()` function in `dataset.py` file,  change `dataset_dir` variable to a directory name of your choice. It is the directory from where the data would ne stored and fetched.
+- Kernel ridge regression (KRR), Gaussian and Laplacian.
+- Kernel logistic regression (KLR), Gaussian and Laplacian.
+- Precomputed-kernel SVC, Gaussian and Laplacian, binary and multiclass.
+- Random Feature Classifiers (RFC), Gaussian and Laplace, with ridge or cross-entropy classifiers.
+- FCNN, LeNet, and WideResNet.
+- Gaussian gradient-regularized KLR, binary and multiclass (Adversarial KLR).
+- PGD adversarially trained FCNN and LeNet.
 
-This repository provides implementations of:
+## Installation
 
-- Kernel Ridge Regression (KRR)(Gaussian / Laplacian)
-- Recursive Feature Machines (RFM)(Gaussian / Laplacian)
-- FCNN / LeNet( Benign and Adversarially trained)
-- Random Feature Classifier Training(Gaussian / Laplacian)
-
-
-# Robustness of Kernel Methods, Recursive Feature Machines, Random Features, and Neural Networks
-
-This repository provides:
-
----
-
-## Learning Algorithms
-
-### Kernel Methods
-
-- Kernel Ridge Regression (KRR)
-- Recursive Feature Machines (RFM)
-- Random Feature Classifiers (RFC)
-### Neural Networks
-
-- Fully Connected Neural Networks (FCNN)
-- LeNet CNNs
-
-### Robust Training
-
-- PGD adversarial training
-
-### Robust Evaluation
-
-- PGD ($\ell_\infty$)
-- AutoAttack($\ell_2$)
-- Simultaneous Perturbation Stochastic Approximation(SPSA)
----
-
-# Repository Structure
-
-In the below directory structure *mc* is for multiclass, *pairwise* is for binary problem,  *dataset* can take values fmnist, kmnist, qmnist. 
-```bash
-.
-├── tune_hparams.py
-├── save_rfms.py
-├── updated_rfm.py
-├── <dataset>2/ #
-
-├── rff_training.py
-├── rff_<kernel>_<dataset>_pairwise # pairwise is for binary problen.
-├── rff_<kernel>_<dataset>_mc # 'mc' is for multiclass. 
-
-
-├── best_nn.py
-├── adv_trn.py
-├── FCNN_nn_<dataset>_per_class
-    ├── l2_eps_1.0  # It stores adversarially trained neural nets, trained in l2 for epsilon 1.0
-    ├── linf_eps_6 # It stores adversarially trained neural nets, trained in linf for epsilon 6/255
-├── FCNN_nn_<dataset>_mc
-    ├── l2_eps_1.0
-    ├── linf_eps_6
-├── FCNN_lenet_<dataset>_per_class
-    ├── l2_eps_1.0
-    ├── linf_eps_6
-├── FCNN_lenet_<dataset>_mc
-    ├── l2_eps_1.0
-    ├── linf_eps_6
-
-├── attack_nn.py
-├── attack_adv_nn.py
-├── attack_ker_rfm.py
-├── spsa_attack.py
-
-├── dataset.py
-├── results/
-```
-
----
-
-# Installation
+Run from the repository root. Create and activate the vision environment:
 
 ```bash
-conda env create -f blackwell_ker_rfm.yml
+conda env create --file blackwell_ker_rfm.yml --name blackwell_ker_rfm
 conda activate blackwell_ker_rfm
-
-pip install pytictoc
-pip install git+https://github.com/fra31/auto-attack
-pip install -I git+https://github.com/parthe/torchkernels
 ```
 
----
-
-# Supported Datasets
-
-- FashionMNIST(fmnist)
-- KMNIST(kmnist)
-- QMNIST(qmnist)
-
----
-
-# Pipeline for KRR and RFM
-
----
-
-# 1. Hyperparameter Tuning
-
-The script `tune_hparams.py` performs a grid search over:
-
-- Kernel bandwidth (`L`)
-- Ridge regularization (`λ`)
-
-and selects the best configuration based on validation accuracy.
-
----
-
-## Binary Classification
-
-Example:
+For CAFA dataset experiments, use the separate environment:
 
 ```bash
-python tune_hparams.py \
-    --DATASET fmnist \
-    --VERSION rfm
+conda env create --file tab_attack.yml --name tab_attack
+conda activate tab_attack
 ```
 
----
+## Data and experiment settings
 
-## Multiclass Classification
+The grayscale examples below use Fashion-MNIST (`fmnist`). Related loaders
+support KMNIST (`kmnist`), QMNIST (`qmnist`), and EMNIST (`emnist`). Support
+for SVHN and CIFAR varies by model; see the limitations below.
 
-Example:
+Before running on another machine, configure dataset paths in `dataset.py`,
+`rff_code/dataset.py`, and `rff_code/trainers/dataset.py`. The current loaders
+use absolute paths. These three implementations differ and are required by
+different entry points. Keep the repository layout intact.
+
+Run every command from the repository root. `PYTHONPATH=.` allows scripts
+under subdirectories to find root modules. Paths such as `path/to/model.pt`
+must be replaced with real outputs from training.
+
+Classification flags differ by script:
+
+| Scripts | Multiclass | Binary |
+| --- | --- | --- |
+| KRR | `--mc` | `--class1 0 --class2 1` |
+| Benign KLR | `--multiclass` | `--classes 0 1` |
+| NN and RFC | `--MC` | Omit `--MC`; NN training pairs are configured in source |
+| SVC training | `--MC` | Omit `--MC` to train all 45 digit-label pairs |
+| SVC attacks | Omit `--CLASSES` | `--CLASSES 0 1` |
+
+## Benign training
+
+### Kernel ridge regression
+
+Use `--version kernel` for ordinary KRR. `--version rfm` performs metric
+learning and is a separate experiment.
 
 ```bash
-python tune_hparams.py \
-    --DATASET fmnist \
-    --VERSION rfm \
-    --MC
+python save_rfms.py --dataset fmnist --kernel gaussian --version kernel --L 1 --reg 0.001 --mc
+python save_rfms.py --dataset fmnist --kernel laplacian --version kernel --L 1 --reg 0.001 --class1 0 --class2 1
 ```
 
-*--VERSION* can be either 'kernel' for KRR, or 'rfm' for Recursive Feature Machines. Additionally, to sweep over different kernels, you need to uncomment and comment this snippet 
-```
-SWEEPS = {
-    "gaussian": {
-        "length_scales": [0.05, 0.125, 0.25, 0.5, 1, 2.0, 4.0, 6.0],
-        # "length_scales": [0.05, 0.125],
-        # "length_scales": [0.1],
-        # "regularizers": [1e-2],
-        "regularizers": [1e-4, 1e-3, 1e-2],
-    }
-    # }, 
+Checkpoints are saved under `fmnist2/`. Omit `--metrics_only` so training
+centers and coefficients are retained for attacks. `best_round_accuracy` records the best accuracy.
 
-    # "laplacian": {
-    #     # "length_scales": [0.1, 0.05, 0.17, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 6.0],
-    #     "length_scales": [0.05, 0.125, 0.25, 0.5, 1, 2.0, 4.0, 6.0],
-    #     # "length_scales": [1.0],
-    #     "regularizers": [1e-4, 1e-3, 1e-2],
-    #     # "regularizers": [1e-2],
-    # }
-    
-}
-```
-in *tune_hparams.py*.
-
----
-
-## Output
-
-This generates:
-
-### Metrics
+### Kernel logistic regression
 
 ```bash
-f"./{args.dataset}2/{args.kernel}_{args.version}/metrics_*.json" # For binary.
-f"./{args.dataset}2/{args.kernel}_{args.version}_mc/metrics_*.json" # For multi-class.
+python KernelLR.py --dataset fmnist --kernel gaussian --multiclass
+python KernelLR.py --dataset fmnist --kernel laplacian --classes 0 1
 ```
 
-### Best configurations
+Outputs are under `klr_sweep_fmnist/`. Supply multiple binary pairs sequentially,
+for example `--classes 0 1 2 3`. Hyperparameter grids are configured in source.
+
+### Kernel SVC
 
 ```bash
-tune_idx_*.txt
+PYTHONPATH=. python rff_code/trainers/train_precomputed_svc.py --DATASET fmnist --MC --kernels gaussian laplacian --output-root svc_cv
 ```
 
-### Sweep summaries
+This builds kernels in PyTorch and fits sklearn precomputed-kernel SVCs.
+Keep each `*_best.pkl`, `*_results.json`, and `*_xtrain.pt` together: attacks
+need the exact fit-time training rows. Omit `--MC` for pairwise training.
+
+### Random Feature Classifiers (RFCs)
 
 ```bash
-./results/*.json
+PYTHONPATH=. python rff_code/run_train.py --DATASET fmnist --MC --kernel gaussian --trn square --num_features 5000 --seed 42
+PYTHONPATH=. python rff_code/run_train.py --DATASET fmnist --MC --kernel Laplace --trn ce --num_features 5000 --seed 42
 ```
 
----
+`square` fits ridge weights; `ce` fits a linear classifier with cross entropy.
+For RFC, spell the kernel `Laplace` or `laplace`, rather than `laplacian`.
+Keep training summaries and checkpoints, including feature-map seeds and bias.
 
-# 2. Training and Saving RFMs
-
-The script `save_rfms.py` trains either:
-
-- Kernel model (`version=kernel`)
-- Recursive Feature Machine (`version=rfm`)
-
----
-## Laplacian RFM
-
-For binary, here class1 can take values in 0-9, and class2 in 1-9. 
-```bash
-python save_rfms.py \
-    --kernel laplacian \
-    --L 1.0 \
-    --reg 0.001 \
-    --dataset fmnist \
-    --class1 0 \
-    --class2 1 \
-    --version rfm
-```
-
-For  multiclass, keep class1 to be 0, and class2 to be 1.
-```bash
-python save_rfms.py \
-    --kernel laplacian \
-    --L 1.0 \
-    --reg 0.001 \
-    --dataset fmnist \
-    --class1 0 \
-    --class2 1 \
-    --version rfm \
-    --mc
-```
-
---kernel is either "laplacian" or "gaussian". 
---L is the length_scale value for the kernel or rfm to be trained.
---reg is the ridge regulariser value.
---dataset is in "fmnist","kmnist","qmnist".
---version is either "kernel" or "rfm".
---MC to be included for multiclass training.
-
----
-
-## Metrics-only mode
-
-For lightweight tuning:
+### FCNN, LeNet, and WRN
 
 ```bash
-python save_rfms.py ... --metrics_only
+python best_nn.py --DATASET fmnist --MC --SEED 42
+python best_nn.py --DATASET fmnist --MC --CNN --SEED 42
+python best_nn.py --DATASET fmnist --MC --WRN --SEED 42
 ```
 
-This saves:
+Default architecture is FCNN; `--CNN` selects LeNet and `--WRN` selects WRN.
+Use one architecture flag at a time. Omitting `--MC` currently trains only
+the source-configured pair `(5,8)`; change it before comparing another pair.
+The selected checkpoint is `best_model.pt` inside the printed output directory.
+
+## Robust and adversarial training
+
+### Gaussian robust KLR
 
 ```bash
-f"./{args.dataset}2/{args.kernel}_{args.version}/metrics_*.json
+PYTHONPATH=. python kernel_adv_trn/adv_trn_binary.py --DATASET fmnist --CLASS_PAIRS 0 1 --KERNEL gaussian --RHO 0.04 --LAM 1 --OUTPUT kernel_adv_trn/runs/binary_models
+PYTHONPATH=. python kernel_adv_trn/adv_trn_mc.py --DATASET fmnist --KERNEL gaussian --EPS 0.031372549 --RHO_MULT 1 --OUTPUT kernel_adv_trn/runs/multiclass.pt
 ```
 
-instead of full tensor artifacts.
+For binary training, `RHO` is a gradient-penalty weight. The multiclass trainer
+sets `rho = EPS * RHO_MULT`. These coefficients are not certified attack radii.
+The multiclass `--LAM` accepts one value; binary `--LAM` accepts a list. `--RHO_MULT` is 1 for binary and 2 for multiclass KLR.
 
----
-
-## Full Artifact
-
-Training mode saves:
+### FCNN and LeNet adversarial training
 
 ```bash
-f"./{args.dataset}2/{args.kernel}_{args.version}/*.pt" # For binary.
-f"./{args.dataset}2/{args.kernel}_{args.version}_mc/*.pt # For multiclass
+python adv_trn.py --DATASET fmnist --MC --MODEL fcnn --NORM Linf
+python adv_trn.py --DATASET fmnist --MC --MODEL lenet --NORM L2
 ```
 
----
+Both architectures accept `Linf` and `L2`. Current training budgets are fixed
+in source: FCNN Linf `24/255`, LeNet Linf `6/255`, and L2 `1.0` for both.
+Outputs use `best_model_1.pt`.
 
-# Example Workflow
+## Attack evaluation
 
----
+Linf budget lists use pixel units: `8` means `8/255` on inputs in `[0,1]`.
+L2 lists use raw input-space radii, such as `0.5` or `1.0`.
+Train once, then evaluate each norm separately. Except for the dedicated
+multiclass APGD evaluator, scripts may use fixed budget lists in source.
 
-## Tune hyperparameters
+### KRR: prepare the attack summary
 
-For binary or 1v1.
-```bash
-python tune_hparams.py \
-    --DATASET fmnist \
-    --VERSION rfm
-```
-For multiclass
-```bash
-python tune_hparams.py \
-    --DATASET fmnist \
-    --VERSION rfm \
-    --MC
-```
-
----
-
-## Train single model
+The KRR evaluator reads a JSON list of checkpoint paths. For the Gaussian
+multiclass example above, create its summary:
 
 ```bash
-python save_rfms.py \
-    --kernel gaussian \
-    --L 1.0 \
-    --reg 0.001 \
-    --dataset fmnist \
-    --class1 0 \
-    --class2 1 \
-    --version rfm
+python - <<'PY'
+import json
+from pathlib import Path
+
+checkpoint = Path("fmnist2/kernel_results_gaussian_fmnist_L1_reg0.001_mc.pt")
+assert checkpoint.is_file(), checkpoint
+summary = Path("fmnist2/gaussian_kernel_mc/gaussian_kernel.json")
+summary.parent.mkdir(parents=True, exist_ok=True)
+summary.write_text(json.dumps({"results": [{"path": str(checkpoint.resolve())}]}))
+PY
 ```
----
 
-# Notes
-
-- `VERSION=kernel` performs standard kernel regression.
-- `VERSION=rfm` performs recursive feature learning.
-
----
-
-# Pipeline for FCNN, and LeNet benign and adversarial training.
-
-# 1. Clean Neural Network Training
-
-Implemented in:
+For binary, use `<dataset>2/<kernel>_kernel/<kernel>_kernel.json` and add
+`"classes": [0, 1]` to each entry. Use a dictionary containing `results`,
+rather than a bare JSON list. The optional tuning script currently has
+inconsistent output paths; explicit summary preparation avoids that dependency.
 
 ```bash
-best_nn.py
+python svhn_new.py --DATASET fmnist --MC --VERSION kernel --Kernel_Name gaussian --AA_norm Linf --PGD
+python svhn_new.py --DATASET fmnist --MC --VERSION kernel --Kernel_Name gaussian --AA_norm L2 --BB_attack spsa
 ```
 
-Supports:
+Both attacks accept either norm. Substitute `laplacian` and its matching
+summary/checkpoint for the Laplacian model.
 
-- FCNN
-- LeNet
-
----
-
-## FCNN
+### Benign KLR
 
 ```bash
-python best_nn.py \
-    --DATASET fmnist
+python attack_klr_benign.py --dataset fmnist --kernel gaussian --multiclass --norm Linf
+python kernel_spsa_atk.py --dataset fmnist --kernel gaussian --multiclass --norm L2
 ```
 
----
+The first command runs APGD-CE; the second runs SPSA. Each supports both norms
+and kernels. For binary, replace `--multiclass` with `--classes 0 1`.
 
-## LeNet
+### Precomputed SVC
+
+Use the same evaluator for either attack, kernel, norm, or class setting:
 
 ```bash
-python best_nn.py \
-    --DATASET fmnist \
-    --CNN
+PYTHONPATH=. python rff_code/trainers/attack_precomputed_svc.py --DATASET fmnist --KERNEL gaussian --AA_norm Linf --ATTACK apgd-ce --MODEL_FILE path/to/model_best.pkl --RESULTS_JSON path/to/model_results.json --XTRAIN_FILE path/to/model_xtrain.pt --EPSILONS 0 4 8
+PYTHONPATH=. python rff_code/trainers/attack_precomputed_svc.py --DATASET fmnist --KERNEL laplacian --AA_norm L2 --ATTACK spsa --MODEL_FILE path/to/model_best.pkl --RESULTS_JSON path/to/model_results.json --XTRAIN_FILE path/to/model_xtrain.pt --EPSILONS 0 0.5 1
 ```
 
----
+Add `--CLASSES 0 1` for a binary checkpoint. Keep the sklearn agreement check
+enabled. Optional `--OUTPUT_PATH` selects the result JSON; `--SAVE_ADV` also
+saves attacked inputs. Default output filenames distinguish APGD and SPSA.
 
-## Multiclass
+### FCNN, LeNet, and WRN
 
 ```bash
-python best_nn.py \
-    --DATASET fmnist \
-    --MC
+python attack_nn.py --DATASET fmnist --MC --MODEL_TYPE fcnn --CKPT_PATH path/to/best_model.pt --AA_norm Linf --PGD --OUTPUT_PATH results/fcnn_linf_apgd.json
+python attack_nn.py --DATASET fmnist --MC --MODEL_TYPE lenet --CKPT_PATH path/to/best_model.pt --AA_norm L2 --BB_attack spsa --OUTPUT_PATH results/lenet_l2_spsa.json
 ```
 
----
+Use `--MODEL_TYPE wrn` for WRN. Both attacks support both norms.
+For adversarial FCNN/LeNet, select their `best_model_1.pt` checkpoint through
+`--CKPT_PATH`. For binary evaluation omit `--MC`; checkpoint paths currently
+need a `(class1, class2)` component because the evaluator parses the pair from
+the path. Set an explicit output path to distinguish different training runs.
 
-## Output
-
-Saved artifacts:
+### Random features
 
 ```bash
-best_model.pt
-history_*.jsonl
-runs_*.jsonl
-runs*.csv
+PYTHONPATH=. python rff_code/attack_rff.py --DATASET fmnist --MC --MODEL_TYPE rff --RFF_KERNEL gaussian --TRN_TYPE square --NUM_FEATURES 5000 --SEED 42 --JSON_PATH path/to/training_summary.json --AA_norm Linf --PGD
+PYTHONPATH=. python rff_code/attack_rff.py --DATASET fmnist --MC --MODEL_TYPE rff --RFF_KERNEL Laplace --TRN_TYPE ce --NUM_FEATURES 5000 --SEED 42 --JSON_PATH path/to/training_summary.json --AA_norm L2 --BB_attack spsa
 ```
 
----
+Match the kernel, training type, feature count, seed, and summary to the actual
+trained model. Both attacks support both norms. Supply `--JSON_PATH` explicitly.
 
-# 2. Adversarial Training
+### Gaussian robust KLR
 
-Implemented in:
+Binary checkpoints use one evaluator for both attacks:
 
 ```bash
-adv_trn.py
+PYTHONPATH=. python kernel_adv_trn/attack_adv_klr.py --checkpoint path/to/fmnist_0_vs_1_best.pt --NORM Linf --ATTACK apgd-ce --EPSILONS 0 4 8
+PYTHONPATH=. python kernel_adv_trn/attack_adv_klr.py --checkpoint path/to/fmnist_0_vs_1_best.pt --NORM L2 --ATTACK spsa --EPSILONS 0 0.5 1
 ```
 
-Uses multi-step PGD adversarial training.
-
-Supports:
-
-- PGD $\ell_\infty$ attacks
-- Autoattck $\ell_2$ attacks
-
----
-
-## FCNN + PGD $\ell_\infty$
+Multiclass checkpoints have separate evaluators:
 
 ```bash
-python adv_trn.py \
-    --DATASET fmnist \
-    --MODEL fcnn \
-    --NORM Linf
+PYTHONPATH=. python kernel_adv_trn/mc_robust_attack.py --checkpoint kernel_adv_trn/runs/multiclass.pt --norm Linf --attacks apgd-ce --budgets 0 4 8 --output results/mc_apgd_linf
+PYTHONPATH=. python kernel_adv_trn/klr_spsa_mc.py --checkpoint kernel_adv_trn/runs/multiclass.pt --norm L2 --budgets 0 0.5 1 --output results/mc_spsa_l2.json
 ```
 
----
+Both multiclass evaluators accept either norm. Use a new APGD output directory
+for each run. Binary and multiclass checkpoint formats are different.
+
+### SPSA controls for SVC and binary robust KLR
+
+The two updated evaluators accept:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--SPSA_ITERS` | 100 | Optimization iterations |
+| `--SPSA_SAMPLES` | 32 | Random directions per iteration |
+| `--SPSA_BATCH_SIZE` | 32 | Images processed together |
+| `--SPSA_QUERY_BATCH_SIZE` | 128 | Maximum images per prediction call |
+| `--SPSA_ETA` | 0.01 | Finite-difference radius, raw units |
+| `--SPSA_LR` | epsilon/10 | Update size, raw units |
+
+`--SEED` controls reproducibility. Increasing iterations or samples increases
+query cost. These controls apply to the shared SPSA implementation; other
+evaluators have their own settings and CLI spellings.
+
+## Results and limitations
+
+Preserve checkpoint metadata, preprocessing, class order, training splits,
+and random-feature seeds alongside reported results. Accuracy scales differ:
+the precomputed SVC evaluator reports percentages; binary robust KLR records
+clean accuracy as a fraction and its legacy `pgd_acc` values as percentages.
+For binary robust KLR, the JSON `pgd` list is retained for compatibility;
+the `attack` field records whether the run used APGD or SPSA.
 
-## LeNet + $\ell_2$
-
-```bash
-python adv_trn.py \
-    --DATASET fmnist \
-    --MODEL lenet \
-    --NORM L2
-```
-
----
-
-Training uses:
-
-```math
-\epsilon=6/255 \quad (\ell_\infty)
-```
-
-```math
-\epsilon=1.0 \quad (\ell_2)
-```
-
----
-
-## Output
-
-```bash
-best_model.pt
-history_*.jsonl
-runs*.csv
-```
-
----
-
-# Pipeline for Random Feature Classifier training.
-
-Implemented in:
-
-```bash
-rff_training.py
-```
-
-Supports:
-
-- Gaussian RFF
-- Laplacian RFF
-
-Hyperparameter tuning over:
-
-- λ (ridge)
-- length scale
-
----
-
-## Gaussian RFF
-
-```bash
-python rff_training.py \
-    --DATASET fmnist \
-    --kernel Gaussian
-```
-
----
-
-## Laplacian RFF
-
-```bash
-python rff_training.py \
-    --DATASET fmnist \
-    --kernel Laplace
-```
-
----
-
-## Output
-
-```bash
-*.json
-*.pt
-```
-
-Containing:
-
-- learned weights
-- kernel parameters
-- validation/test accuracy
-
----
-
-# Attack Codes
-
-Before attack run `python json_creator.py --root_dir {Directory_where_the_models_to_be_attacked_are_saved} \
-    --output_file {output_file_name.json}
-For LeNet's benign training, keep output_file_name to be *fcnn_sgd_bin_best_{dataset}_mc_runs.json* for multiclass, for pairwise keep it as  *lenet_{dataset}_per_class.json*.
-For LeNet's adversarial training, keep output_file_name to be *./l2_eps_1.0/lenet_{dataset}_per_class.json* or *./linf_eps_6/lenet_{dataset}_per_class.json*.
-
-For NN's benign training, keep output_file_name to be *fcnn_sgd_bin_best_{dataset}_mc_runs.json* for multiclass, for pairwise keep it as  *fcnn_sgd_bin_best_{dataset}_class_pair_runs.json*.
-For NN's adversarial training, keep output_file_name to be *file_paths_l2_eps_1.0.json* or *file_paths_linf_eps_6.json*
-
-For KRR or RFM, keep output_file_name to be *./{dataset}2/{kernel}_{version}/{kernel}_{version}.json* for binary, for multiclass keep it as  *./{dataset}2/{kernel}_{version}_mc/{kernel}_{version}.json*.
-
-For RFF training, keep output_file_name to be *{dataset}_mc_rff_results.json*, for multiclass, and *rff_{kernel}_{dataset}_pairwise.json. Here, *{kernel}* takes either "laplace" or "gaussian".
-
-Wherever we need json files, these paths can be given like in `attack_nn.py` for 1v1 case.
-
-# 1. Attack Clean Neural Networks / RFF
-
-Implemented in:
-
-```bash
-attack_nn.py
-```
-
-Supports:
-
-- FCNN
-- LeNet
-- RFF
-
----
-
-## FCNN
-
-```bash
-python attack_nn.py
-```
-Change:
-
-```python
-model_type="fcnn"
-rff_kernel = None
-```
----
-
-## LeNet
-
-Change:
-
-```python
-model_type="lenet"
-rff_kernel = None
-```
-
----
-
-## RFF
-
-Change:
-
-```python
-model_type="rff"
-rff_kernel = "gaussian" or "laplace"
-```
-
-inside the code. For multiclass keep *mc=True* else, switch it to *False*.
-For multiclass provide CKPT_PATH as the <path_to_the_model_stored>(in .pt format)) that needs to be changed inside the code. For binary we can either provide CKPT_PATH as <path_to_the_model_stored>(in .pt format), or to attack over all the binary problems at once, we can provide a json file having path for each binary classifier as a value for *JSON_PATH*.
-For e.g.:-
-```
-{
-  "root_dir": "./rff_gaussian_fmnist_pairwise",
-  "num_experiments": 45,
-  "results": [
-    {
-      "experiment": "rff_gaussian_fmnist_pairwise",
-      "path": "./rff_gaussian_fmnist_pairwise/fmnist_(0, 1)_rff_best.pt"
-    },
-    .
-    .
-    .
-    .
-```
-
----
-
----
-
-# 2. Attack Adversarially Trained Networks
-
-Implemented in:
-
-```bash
-attack_adv_nn.py
-```
-
-Supports:
-
-- adversarial FCNN
-- adversarial LeNet
-
----
-
-## Example
-
-```bash
-python attack_adv_nn.py
-```
-
-Evaluates:
-
-- robust accuracy
-- ε sweep
-
----
-
----
-
-# 3. Attack Kernel / RFM Models
-
-Implemented in:
-
-```bash
-attack_ker_rfm.py
-```
-
-Supports:
-
-- Kernel Ridge Regression
-- Recursive Feature Machines
-
-Supported kernels:
-
-- Gaussian
-- Laplacian
-
----
-
-## Example
-
-```bash
-python attack_ker_rfm.py \
-    --DATASET qmnist \
-    --AA_norm Linf \
-    --VERSION rfm \
-    --Kernel_Name laplacian
-```
-
----
-
-# 4. SPSA Evaluation
-
-Implemented in:
-
-```bash
-spsa_attack.py
-```
-
-Provides:
-
-- batched SPSA
----
-
-## Example
-
-```bash
-python spsa_attack.py \
-    --DATASET qmnist \
-    --AA_norm Linf \
-    --VERSION rfm \
-    --Kernel_Name laplacian
-```
-
----
-
-# Output
-
-All scripts save:
-
-```bash
-PGD_result_*.json
-```
----
-# Reproducibility
-
-All experiments use:
-
-- seed = 42
-- deterministic subset sampling
-- identical train/validation/test splits
 
 ---
 
