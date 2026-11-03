@@ -6,8 +6,6 @@ import torch.nn.functional as F
 from torchkernels.kernels.radial import laplacian, gaussian
 from autoattack import AutoAttack
 
-# import sys
-# sys.path.append("/users/student/rs/rahulky/robust-rfms/nfa_src/src")
 import dataset
 
 from pathlib import Path
@@ -21,49 +19,34 @@ parser = argparse.ArgumentParser(description="Adversarial Attack Evaluation")
 
 parser.add_argument("--DATASET", type=str)
 parser.add_argument("--AA_norm", type=str)
-# parser.add_argument("--PGD", action = "store_true")
-# parser.add_argument("--BB_attack", type=str)
+
 parser.add_argument("--VERSION", type=str)
 parser.add_argument("--MC", action="store_true")
 parser.add_argument("--Kernel_Name", type=str)
+parser.add_argument("--SEED", type=int, default=42)
 
 args = parser.parse_args()
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# AutoAttack setup
 AA_VERSION = "standard"
 AA_ATTACKS = ["apgd-ce"]
 
-# AA_NORM    = "L2"
-
-# pgd = False
-
-# bb_attack = "spsa"
-
-# version = "rfm"
-
-# Dataset = "qmnist"
-
-# KERNEL_NAME = "laplacian"
-
-# mc = False
 
 Dataset = args.DATASET
 AA_NORM = args.AA_norm
-# pgd = args.PGD
-# bb_attack = args.BB_attack
+
 pgd=False
 bb_attack = 'spsa'
 version = args.VERSION
 mc = args.MC
 KERNEL_NAME = args.Kernel_Name
+SEED = args.SEED
 
-# DIR = "./svhn_class_pair_laplacian/"
+
 DIR=f"./{Dataset}2/{KERNEL_NAME}_{version}/"
 
 loss_fn = lambda xb, yb: F.cross_entropy(model_rfm(X_train, xb, Ms, sols, bandwidth, iteration_idx) , yb, reduction="none")                      # forward
-
 
 print(f"Running {version} version with kernel {KERNEL_NAME} on dataset {Dataset} with {'multi-class' if mc else 'binary'} setting, using {'PGD' if pgd else bb_attack} attack under {AA_NORM} threat model.")
 if not mc:
@@ -73,14 +56,14 @@ else:
     INPUT_JSON = f"{DIR}{KERNEL_NAME}_{version}.json"
 
 if not mc:
-    OUT_JSON   = f"{DIR}PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_class_pair.json"   # <-- output
+    OUT_JSON   = f"{DIR}/seed_{SEED}/PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_class_pair.json"   # <-- output
 else:
-    OUT_JSON   = f"{DIR}PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_mc.json"   # <-- output
+    OUT_JSON   = f"{DIR}/seed_{SEED}/PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_mc.json"   # <-- output
 
-# epsilons in pixel scale (as in your script)
+os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
+
 if AA_NORM == "Linf":
-    # EPSILONS = [0, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0, 32.0, 40.0, 55.0]
-    EPSILONS = [32.0, 40.0, 50.0]
+    EPSILONS = [0, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0, 32.0, 40.0, 55.0]
 else:
     EPSILONS = [0, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0]
 
@@ -101,7 +84,6 @@ from updated_rfm import *
 def normalize(x: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
     return x /x.norm(p=2, dim=-1, keepdim=True).clamp_min(eps)
 
-# Our forward function for RFM model
 def model_rfm(X_train, X_test, Ms, sols, bandwidth, i):
 
     dtype = X_train.dtype
@@ -114,10 +96,6 @@ def model_rfm(X_train, X_test, Ms, sols, bandwidth, i):
     M_t = torch.nan_to_num(M_t, nan=0.0, posinf=1.0, neginf=-1.0)
     alpha = torch.nan_to_num(alpha, nan=0.0, posinf=1.0, neginf=-1.0)
 
-    # Build K_test with consistent dtype/device
-    # Decide orientation. Here we compute K(X_train, X_test) -> (n_train, n_test)
-    # K_test = laplace_kernel_M(X_train, X_test, bandwidth, M_t)
-    # Lapl_k=lambda samples,centers: laplacian(normalize(samples),normalize(centers))
     if KERNEL_NAME == "laplacian":
         K_test = laplacian(normalize(X_train), normalize(X_test), bandwidth, M_t, False).to(DEVICE)  # alternative kernel
     elif KERNEL_NAME == "gaussian":
@@ -129,22 +107,23 @@ def model_rfm(X_train, X_test, Ms, sols, bandwidth, i):
     return preds
 
 def spsa_fast(loss_fn, x, y, epsilon=0.03, eta=0.01, lr=0.01,
-              iterations=40, sample_size=128, norm="Linf"):
+              iterations=40, sample_size=128, norm="Linf", seed=None):
 
     x_adv = x.detach().clone()
     B, D = x_adv.shape
     eta = float(np.clip(epsilon / 2, 1e-3, 0.01))
+
+    generator = None
+    if seed is not None:
+        generator = torch.Generator(device=x.device)
+        generator.manual_seed(seed)
 
     print("I'm in spsa fast")
 
     for _ in range(iterations):
         print("I am rademacher")
 
-        # if norm == "Linf":
-        v = torch.empty(sample_size, B, D, device = x.device).bernoulli_(0.5).mul_(2).sub_(1)
-        # else:
-        #     v = torch.randn(sample_size, B, D, device=x.device)
-        #     v = v / v.norm(p=2, dim=2, keepdim=True).clamp_min(1e-12)
+        v = torch.empty(sample_size, B, D, device = x.device).bernoulli_(0.5, generator=generator).mul_(2).sub_(1)
 
         x_plus  = (x_adv.unsqueeze(0) + eta * v).clamp(0, 1)
         x_minus = (x_adv.unsqueeze(0) - eta * v).clamp(0, 1)
@@ -198,6 +177,8 @@ def get_adv_acc(epsilon=4/255, alpha=1/255, num_iters=15, iteration_idx=0):
         xb = X_test_dev[start:end]
         yb = labels_all[start:end]
 
+        batch_id = start // attack_batch_size
+
         X_adv = spsa_fast(
             loss_fn,
             xb,
@@ -207,6 +188,7 @@ def get_adv_acc(epsilon=4/255, alpha=1/255, num_iters=15, iteration_idx=0):
             iterations=num_iters,
             sample_size=spsa_sample_size,
             norm=AA_NORM,
+            seed=SEED
         )
 
         with torch.no_grad():
@@ -233,33 +215,23 @@ with open(INPUT_JSON, "r") as f:
 results_out: List[Dict[str, Any]] = []
 errors_out: List[Dict[str, str]] = []
 
-for entry in summary.get("results", summary):  # supports either {"results":[...]} or bare list
+for entry in summary.get("results", summary): 
     try:
 
         exp_path = entry["path"]
         if mc == False:
-            classes = entry["classes"]  # expected like [c1, c2] or ["0","1"]
+            classes = entry["classes"] 
 
-        # print(f"[INFO] Processing entry: classes={classes}, path={exp_path}")
 
         BASE_DIR = Path(__file__).resolve().parent
-        # ARTIFACT_ROOT = BASE_DIR / f"{Dataset}2"
         ARTIFACT_ROOT = BASE_DIR / f"{DIR}"
-        # ARTIFACT_ROOT = BASE_DIR + DIR
         exp_path = (ARTIFACT_ROOT / exp_path).resolve()
-
-        # exp_path = "/janaki/common/adv_kernels/artifacts_gauss/" + exp_path
 
         print("Loading experiment from:", exp_path)
 
-        # Parse classes only for two-class case
         if mc == False:
             c1, c2 = int(classes[0]), int(classes[1])
             clas = (c1, c2)
-
-        # Load dataset for the pair
-        # trainloader, testloader = load_fmnist(clas)
-        # trainloader, testloader = load_fmnist()
         if Dataset == "svhn":
             if mc == False:
                 trainloader, valloader, testloader = dataset.load_svhn(classes=(c1,c2))
@@ -286,7 +258,6 @@ for entry in summary.get("results", summary):  # supports either {"results":[...
                     
             else:
                 trainloader, valloader, testloader = dataset.load_fmnist(classes=(0,1) , which_mnist='emnist', multiclass = mc)
-        # Load checkpoint (RFM gaussian results)
         if not os.path.isfile(exp_path):
             raise FileNotFoundError(f"Checkpoint not found: {exp_path}")
 
@@ -296,16 +267,13 @@ for entry in summary.get("results", summary):  # supports either {"results":[...
         mses = checkpoint["mses"]
         sols = checkpoint["sols"]
 
-        # L is bandwidth
         bandwidth = checkpoint["bandwidth"]
         iteration = checkpoint["iteration"]
         X_train = checkpoint["X_train"]
         y_train = checkpoint["y_train"]
         best_round_accuracy = checkpoint["best_round_accuracy"]
         diff_rfm_kernel_acc = checkpoint["diff_rfm_kernel_acc"]
-        # X_test = checkpoint["X_test"]
-        # y_test = checkpoint["y_test"]
-        # X_train, y_train = get_data(trainloader)
+
         X_test, y_test = get_data(testloader)
 
         print("M:",len(Ms))
@@ -318,9 +286,7 @@ for entry in summary.get("results", summary):  # supports either {"results":[...
         print("X_test:",X_test.shape)
         print("y_test:",y_test.shape)
 
-        # breakpoint()
 
-        # choose iteration (you used 0th iter)
         if version == "kernel":
             iteration_idx = 0
         else:
@@ -336,10 +302,7 @@ for entry in summary.get("results", summary):  # supports either {"results":[...
                 eps = eps_pix
             if bb_attack == "spsa":
                 acc = get_adv_acc(epsilon=eps, alpha=(eps/10), num_iters=100, iteration_idx=iteration_idx)
-                # if eps < 4.0:
-                #     acc = get_adv_acc(epsilon=eps, alpha=(eps/4), num_iters=40, iteration_idx=iteration_idx)
-                # else:
-                #     acc = get_adv_acc(epsilon=eps, alpha=(eps/8) ,num_iters=50, iteration_idx=iteration_idx)
+
             else:
                 acc = get_adv_acc(epsilon=eps, alpha=(eps/10) ,num_iters=100, iteration_idx=iteration_idx)
 
@@ -373,7 +336,6 @@ for entry in summary.get("results", summary):  # supports either {"results":[...
     except Exception as e:
         errors_out.append({
             "path": entry.get("path", "UNKNOWN"),
-            # "classes": str(entry.get("classes", "UNKNOWN")),
             "error": f"{type(e).__name__}: {e}",
         })
 

@@ -1,0 +1,67 @@
+import math
+import time
+import torch
+import robust_kernels.kernel_matmul as kernel_operator
+import robust_kernels.eigenpro_iteration as iteration
+from robust_kernels.eigenpro_setup import prepare
+
+
+@torch.no_grad()
+def solve(workspace, rhs, *, rtol=1e-6, atol=1e-8, max_epochs=100):
+  """Solve K W=rhs by EigenPro2, stopping on the full true residual."""
+  if not (math.isfinite(rtol) and math.isfinite(atol) and rtol >= 0 and atol >= 0):
+    raise ValueError("solve tolerances must be finite and nonnegative")
+  if type(max_epochs) is not int or max_epochs < 1:
+    raise ValueError("solve_max_epochs must be a positive integer")
+  workspace["solve_calls"] += 1
+  progress = workspace.get("progress")
+  started = time.perf_counter()
+  gram = workspace.get("gram")
+  apply = (lambda w: gram @ w) if gram is not None else (
+    lambda w: kernel_operator.apply(workspace["centers"], w, **workspace["options"]))
+  rhs_norm = rhs.norm(dim=0)
+  threshold = atol + rtol * rhs_norm
+  solution, residual = torch.zeros_like(rhs), rhs_norm
+  warm = workspace["warm_start"]
+  if warm is not None and warm.shape == rhs.shape:
+    warm_residual = (apply(warm) - rhs).norm(dim=0)
+    if warm_residual.max() < residual.max():
+      solution, residual = warm.clone(), warm_residual
+  for epoch in range(max_epochs + 1):
+    if progress is not None and (epoch == 0 or epoch % 10 == 0 or
+                                epoch == max_epochs or (residual <= threshold).all()):
+      progress(dict(phase="kernel_solve", solve_call=workspace["solve_calls"],
+        epoch=epoch, max_residual=residual.max().item(),
+        max_scaled_residual=_maximum_ratio(residual, threshold),
+        solve_elapsed_seconds=time.perf_counter() - started))
+    if not torch.isfinite(residual).all():
+      raise RuntimeError("EigenPro2 kernel solve produced nonfinite residuals")
+    if (residual <= threshold).all():
+      workspace["warm_start"] = solution.clone()
+      return solution, dict(method="eigenpro2", epochs=epoch,
+        max_residual=residual.max().item(),
+        max_relative_residual=_maximum_ratio(residual, rhs_norm),
+        max_scaled_residual=_maximum_ratio(residual, threshold),
+        sample_beta=workspace.get("sample_beta", workspace["beta"]).item(),
+        beta=workspace["beta"].item(), samples=workspace["samples"],
+        rank=workspace["rank"], batch_size=workspace["batch_size"],
+        storage=workspace.get("storage", "matfree"))
+    if epoch < max_epochs:
+      iteration.epoch(workspace, solution, rhs)
+      workspace["total_epochs"] += 1
+      residual = (apply(solution) - rhs).norm(dim=0)
+  ratio = _maximum_ratio(residual, threshold)
+  raise RuntimeError("EigenPro2 failed its residual tolerance: "
+    f"max_residual={residual.max().item():.6g}, "
+    f"max_threshold={threshold.max().item():.6g}, "
+    f"max_component_ratio={ratio:.6g}, "
+    f"max_epochs={max_epochs}, storage={workspace.get('storage', 'matfree')}, "
+    f"dtype={rhs.dtype}; increase solve_max_epochs, adjust the preconditioner, "
+    "or use float64")
+
+
+def _maximum_ratio(numerator, denominator):
+  """Componentwise relative error, with exact zero components contributing zero."""
+  ratios = torch.where(denominator == 0,
+    torch.where(numerator == 0, 0., torch.inf), numerator / denominator)
+  return ratios.max().item()

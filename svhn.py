@@ -81,12 +81,13 @@ else:
 if not mc:
     OUT_JSON   = f"{DIR}/seed_{seed}/PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_class_pair.json"   # <-- output
 else:
-    OUT_JSON   = f"{DIR}/seed_{seed}/PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_mc.json"   # <-- output
-
+    # OUT_JSON   = f"{DIR}/seed_{seed}/PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_mc.json"   # <-- output
+    OUT_JSON   = f"{DIR}/seed_{seed}/PGD_result_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_{Dataset}_mc_over_iters.json"   # <-- output
 
 # epsilons in pixel scale (as in your script)
 if AA_NORM == "Linf":
-    EPSILONS = [0, 0.1, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0, 32.0, 40.0, 55.0]
+    # EPSILONS = [0, 0.1, 1.0, 2.0, 4.0, 6.0, 8.0, 12.0, 20.0, 32.0, 40.0, 55.0]
+    EPSILONS = [16.0, 24.0]
 else:
     EPSILONS = [0, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0]
 
@@ -456,70 +457,74 @@ for entry in summary.get("results", summary):  # supports either {"results":[...
         # choose iteration (you used 0th iter)
         if version == "kernel":
             iteration_idx = 0
+        # if version == "kernle":
+        #     pass
         else:
-            iteration_idx = iteration
+            for i in range(0,len(Ms)):
+            # iteration_idx = iteration
+                iteration_idx = i
 
-        print(f"Using iteration index: {iteration_idx}")
+                print(f"Using iteration index: {iteration_idx}")
 
-        pair_adv = []
-        for eps_pix in EPSILONS:
-            if AA_NORM in ("Linf"):
-                eps = eps_pix/255.0
-            else:
-                eps = eps_pix
-            if bb_attack == "spsa":
-                acc = get_adv_acc(epsilon=eps, alpha=(eps/4), num_iters=40, iteration_idx=iteration_idx)
-                # if eps < 4.0:
-                #     acc = get_adv_acc(epsilon=eps, alpha=(eps/4), num_iters=40, iteration_idx=iteration_idx)
-                # else:
-                #     acc = get_adv_acc(epsilon=eps, alpha=(eps/8) ,num_iters=50, iteration_idx=iteration_idx)
-            else:
-                acc = get_adv_acc(epsilon=eps, alpha=(eps/10) ,num_iters=100, iteration_idx=iteration_idx)
+                pair_adv = []
+                for eps_pix in EPSILONS:
+                    if AA_NORM in ("Linf"):
+                        eps = eps_pix/255.0
+                    else:
+                        eps = eps_pix
+                    if bb_attack == "spsa":
+                        acc = get_adv_acc(epsilon=eps, alpha=(eps/4), num_iters=40, iteration_idx=iteration_idx)
+                        # if eps < 4.0:
+                        #     acc = get_adv_acc(epsilon=eps, alpha=(eps/4), num_iters=40, iteration_idx=iteration_idx)
+                        # else:
+                        #     acc = get_adv_acc(epsilon=eps, alpha=(eps/8) ,num_iters=50, iteration_idx=iteration_idx)
+                    else:
+                        acc = get_adv_acc(epsilon=eps, alpha=(eps/10) ,num_iters=100, iteration_idx=iteration_idx)
 
-            pair_adv.append({
-                    "eps_float": eps,
-                    "norm": "L2" if AA_NORM == "L2" else "Linf",
-                    "attack": "apgd-ce" if AA_NORM == "L2" and pgd==True else ("pgd" if AA_NORM == "Linf" and pgd==True else "spsa" if bb_attack=="spsa" else "square"),
-                    "pgd_acc": float(acc),
-                    })
+                    pair_adv.append({
+                            "eps_float": eps,
+                            "norm": "L2" if AA_NORM == "L2" else "Linf",
+                            "attack": "apgd-ce" if AA_NORM == "L2" and pgd==True else ("pgd" if AA_NORM == "Linf" and pgd==True else "spsa" if bb_attack=="spsa" else "square"),
+                            "pgd_acc": float(acc),
+                            })
 
-        results_out.append({
-            "path": str(exp_path),
-            "kernel": KERNEL_NAME,
-            "classes": [int(clas[0]), int(clas[1])] if not mc else None,
-            "bandwidth": bandwidth,
-            "iteration_idx": iteration_idx,
-            "attack": "apgd-ce" if AA_NORM == "L2" and pgd==True else ("pgd" if AA_NORM == "Linf" and pgd==True else ("spsa" if bb_attack=="spsa" else ("square"))),
-            "pgd": pair_adv,
-        })
+                results_out.append({
+                    "path": str(exp_path),
+                    "kernel": KERNEL_NAME,
+                    "classes": [int(clas[0]), int(clas[1])] if not mc else None,
+                    "bandwidth": bandwidth,
+                    "iteration_idx": iteration_idx,
+                    "attack": "apgd-ce" if AA_NORM == "L2" and pgd==True else ("pgd" if AA_NORM == "Linf" and pgd==True else ("spsa" if bb_attack=="spsa" else ("square"))),
+                    "pgd": pair_adv,
+                })
 
-                    # print(f"Adversarial accuracy for eps={j} (i.e., {eps_float:.5f} in [0,1] scale): {acc:.2f}")
-        # if not mc:
-        #     filename = f"{DIR}/seed_{seed}/adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}.json"
-        #     with open(filename, "w") as f:
-        #         json.dump(results_out, f, indent=2)
-        # else:
-        #     filename = f"{DIR}/seed_{seed}/adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_mc.json"
-        #     with open(filename, "w") as f:
-        #         json.dump(results_out, f, indent=2)
+                                    # print(f"Adversarial accuracy for eps={j} (i.e., {eps_float:.5f} in [0,1] scale): {acc:.2f}")
+                        # if not mc:
+                        #     filename = f"{DIR}/seed_{seed}/adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}.json"
+                        #     with open(filename, "w") as f:
+                        #         json.dump(results_out, f, indent=2)
+                        # else:
+                        #     filename = f"{DIR}/seed_{seed}/adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}{KERNEL_NAME}_{version}_mc.json"
+                        #     with open(filename, "w") as f:
+                        #         json.dump(results_out, f, indent=2)
 
-        if not mc:
-            filename = (
-                f"{DIR}/seed_{seed}/"
-                f"adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}"
-                f"{KERNEL_NAME}_{version}.json"
-            )
-        else:
-            filename = (
-                f"{DIR}/seed_{seed}/"
-                f"adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}"
-                f"{KERNEL_NAME}_{version}_mc.json"
-            )
+                if not mc:
+                    filename = (
+                        f"{DIR}/seed_{seed}/"
+                        f"adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}"
+                        f"{KERNEL_NAME}_{version}.json"
+                    )
+                else:
+                    filename = (
+                        f"{DIR}/seed_{seed}/"
+                        f"adv_acc_{AA_NORM}_{'bb_' if bb_attack != 'False' else ''}"
+                        f"{KERNEL_NAME}_{version}_mc.json"
+                    )
 
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-        with open(filename, "w") as f:
-            json.dump(results_out, f, indent=2)
+            with open(filename, "w") as f:
+                json.dump(results_out, f, indent=2)
 
     except Exception as e:
         errors_out.append({

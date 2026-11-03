@@ -11,9 +11,7 @@ import random
 import numpy as np
 
 parser = argparse.ArgumentParser(description="Adversarial Training")
-# -------------------------
-# Model
-# -------------------------
+
 class FCNN2(nn.Module):
     """
     depth = number of Linear layers INCLUDING output layer.
@@ -366,16 +364,16 @@ def sweep_fcnn_sgd(
     num_classes,
     out_dir: str = "./fcnn_sweep_sgd_bin_w_",
     # depths=( 2,3,4,5,),
-    # depths=( 2,4,),
-    depths=(1,),
+    depths=( 3,5,),
+    # depths=(1,),
     # widths=(64,128,256),
-    # widths=(128,256),
-    widths=(1,),
+    widths=(128,256),
+    # widths=(1,),
     weight_decays=(1e-2,1e-3,1e-4),   # kept as you stated (duplicate allowed)
     # weight_decays=(1e-3,1e-4),   # kept as you stated (duplicate allowed)
     lrs=(0.1,0.03,0.01),                    # good default grid for SGD
     # lrs=(0.1,0.03),                    # good default grid for SGD
-    epochs: int = 50,
+    epochs: int = 200,
     momentum: float = 0.9,
     nesterov: bool = True,
     dropout: float = 0.0,
@@ -398,10 +396,10 @@ def sweep_fcnn_sgd(
 
     input_dim = infer_input_dim(train_loader, device)
 
-    history_path = os.path.join(out_dir, "history_3.jsonl")
-    runs_path    = os.path.join(out_dir, "runs_3.jsonl")
-    csv_path     = os.path.join(out_dir, "runs3.csv")
-    best_path    = os.path.join(out_dir, "best_model.pt")
+    history_path = os.path.join(out_dir, "history_1.jsonl")
+    runs_path    = os.path.join(out_dir, "runs_1.jsonl")
+    csv_path     = os.path.join(out_dir, "runs1.csv")
+    best_path    = os.path.join(out_dir, "best_model_1.pt")
 
 
     run_summaries = []
@@ -550,6 +548,17 @@ def sweep_fcnn_sgd(
     # write CSV summary
     write_csv(csv_path, run_summaries)
 
+    # print("\n=== SWEEP DONE (SGD) ===")
+    # print(f"Best val acc: {best_overall['va_acc']*100:.2f}%")
+    # print(f"Best run_id: {best_overall['run_id']}")
+    # print(f"Best hparams: {best_overall['hparams']}")
+    # print(f"Saved best checkpoint: {best_path}")
+    # print(f"Per-epoch history: {history_path}")
+    # print(f"Per-run summary: {runs_path}")
+    # print(f"CSV summary: {csv_path}")
+
+    # return best_overall
+
 # -------------------------
 # Usage
 # -------------------------
@@ -564,6 +573,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # mc = True
+    # # trainloader, valloader, testloader = load_dataset_svhn(10)
+
+    # Dataset = 'kmnist'
+
+    # norm = "Linf"
+
     mc = args.MC
     Dataset = args.DATASET
     norm = args.NORM
@@ -576,31 +592,26 @@ if __name__ == "__main__":
     if mc == False and Dataset != "bank":
         print("Running per-class pairwise sweep...")
         # 0,8,1,7
-        classes1 = [0,1,2,3,4,5,6,7,8,9] # 4 is remaining for qmnist class-pair L-inf.
-        classes2 = [1,2,3,4,5,6,7,8,9]
+        # classes1 = [0,1,2,3,4,5,6,7,8,9] # 4 is remaining for qmnist class-pair L-inf.
+        # classes2 = [1,2,3,4,5,6,7,8,9]
+        classes1 = [2] # 4 is remaining for qmnist class-pair L-inf.
+        classes2 = [6]
 
     global trainloader
     global valloader
     global testloader
 
     for cl1 in classes1:
-        for cl2 in range(cl1+1, len(classes2)+1):
+        # for cl2 in range(cl1+1, len(classes2)+1):
+        for cl2 in classes2:
         # for cl2 in range(7,8):
             classes = (cl1,cl2)
 
             if Dataset == "svhn":
-
-                def load_dataset_svhn(NUM_CLASSES=2):
-
-                    return dataset.get_svhn(svhn_class=NUM_CLASSES)
-
-                trainloader, valloader, testloader = load_dataset_svhn(10)
-
-                def load_dataset_svhn(classes):
-
-                    return dataset.get_svhn(classes = classes)
-
-                trainloader, valloader, testloader = load_dataset_svhn(classes=(cl1,cl2))
+                trainloader, valloader, testloader = dataset.get_svhn(
+                    classes=classes,
+                    multiclass=mc,
+                )
 
                 print("I am svhn")
 
@@ -653,6 +664,13 @@ if __name__ == "__main__":
                 valloader = testloader
 
                 print("I am Bank")
+            elif Dataset == "cifar10":
+                def ld_cifar():
+                    return dataset.get_cifar()
+                
+                trainloader, valloader, testloader = ld_cifar()
+
+                print("I am cifar10")
             for x, y in trainloader:
                 print("Batch x shape:", x.shape)
                 print("Batch y shape:", y.shape)
@@ -667,7 +685,7 @@ if __name__ == "__main__":
 
                 if norm == "Linf":
                     # EPSILONS = [1/255, 2/255, 4/255, 8/255]
-                    EPSILONS = [6/255]
+                    EPSILONS = [24/255]
                     num_iters = 40
 
                     for eps in EPSILONS:
@@ -675,9 +693,9 @@ if __name__ == "__main__":
                         numerator = int(round(eps*255))
                         print(f"Running with epsilon={eps} and alpha={alpha}...")
                         if mc == False:
-                            best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_per_class/linf_eps_{numerator}/fcnn_sweep_sgd_{Dataset}_{classes}", epochs=50, alpha=alpha, epsilon=eps, num_iters=num_iters, norm=norm, model_type=args.MODEL)
+                            best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_per_class/linf_eps_{numerator}/fcnn_sweep_sgd_{Dataset}_{classes}", epochs=100, alpha=alpha, epsilon=eps, num_iters=num_iters, norm=norm, model_type=args.MODEL)
                         else:
-                            best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_mc/linf_eps_{numerator}/fcnn_sweep_sgd_{Dataset}_mc", epochs=50, alpha=alpha, epsilon=eps, num_iters=num_iters, norm=norm, model_type=args.MODEL)
+                            best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_nn_{Dataset}_mc/linf_eps_{numerator}/fcnn_sweep_sgd_{Dataset}_mc", epochs=100, alpha=alpha, epsilon=eps, num_iters=num_iters, norm=norm, model_type=args.MODEL)
 
                 elif norm == "L2":
                     # EPSILONS = [0.5, 1.0]
@@ -719,3 +737,4 @@ if __name__ == "__main__":
                             best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_lenet_{Dataset}_per_class/l2_eps_{eps}/fcnn_sweep_sgd_{Dataset}_{classes}", epochs=50, alpha=alpha, epsilon=eps, num_iters=num_iters, norm=norm, model_type=args.MODEL)
                         else:
                             best = sweep_fcnn_sgd(trainloader, valloader, num_classes=num_classes, out_dir= f"./FCNN_lenet_{Dataset}_mc/l2_eps_{eps}/fcnn_sweep_sgd_{Dataset}_mc", epochs=50, alpha=alpha, epsilon=eps, num_iters=num_iters, norm=norm, model_type=args.MODEL)
+
