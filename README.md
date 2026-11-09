@@ -1,5 +1,5 @@
 # robust-kms
-This code accompanies the submission 'Adversarial Robustness of Kernel Machines: A Comprehensive Empirical Analysis' made to NeurIPS 2026. Go to [cvx-formulation](https://github.com/irohs-lab/robust-kms/tree/cvx-formulation) branch for better understanding of adversarial KLR code.
+This code accompanies the submission ['Adversarial Robustness of Kernel Machines: A Comprehensive Empirical Analysis'](https://arxiv.org/abs/2611.07474) made to arXiv. Go to [cvx-formulation](https://github.com/irohs-lab/robust-kms/tree/cvx-formulation) branch for better understanding of adversarial KLR code.
 
 # Kernel and Neural Network Robustness Experiments
 
